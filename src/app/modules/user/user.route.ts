@@ -18,7 +18,7 @@ router.post(
         image = `/images/${req.files.image[0].filename}`;
       }
       const userData = {
-        name: req.body.fullName || req.body.fullName,
+        name: req.body.name || req.body.fullName,
         ...req.body,
         image: image,
       };
@@ -49,15 +49,12 @@ router.patch(
 
       // Handle image updates if files are uploaded
       if (req.files && Array.isArray(req.files) && req.files.length > 0) {
-        // Assuming `fileUploadHandler` stores files in req.files
         const uploadedFiles = req.files.map((file: any) => file.path);
         validatedData = {
           ...validatedData,
-          image: uploadedFiles[0], // Update the specific image field
+          image: uploadedFiles[0],
         };
       }
-
-      // Pass the validated data to the controller
       req.body = validatedData;
       await UserController.updateProfile(req, res, next);
     } catch (error) {

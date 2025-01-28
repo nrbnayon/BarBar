@@ -10,7 +10,6 @@ const createUser = catchAsync(
   async (req: Request, res: Response, next: NextFunction) => {
     try {
       const value = { ...req.body };
-      console.log('createUser value', value);
       const result = await UserService.createUserFromDb(value);
       sendResponse(res, {
         success: true,
