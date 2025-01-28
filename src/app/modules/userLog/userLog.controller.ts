@@ -47,7 +47,7 @@ const logoutSession = catchAsync(async (req: Request, res: Response) => {
   await UserLogService.updateLogoutTime(
     userId,
     res,
-    isCurrentSession ? sessionId : undefined
+    isCurrentSession ? sessionId : sessionId
   );
 
   sendResponse(res, {
@@ -61,7 +61,18 @@ const logoutSession = catchAsync(async (req: Request, res: Response) => {
 const logoutAllSessions = catchAsync(async (req: Request, res: Response) => {
   const userId = req.user?.id;
 
-  await UserLogService.updateLogoutTime(userId, res);
+  const result = await UserLogService.updateLogoutTime(userId, res);
+  console.log('result6555', result);
+
+  if (result?.acknowledged) {
+    // Delete all user logs that are active (or based on your needs)
+    const deleteResult = await UserLog.deleteMany({ userId: userId });
+  } else {
+    return res.status(500).json({
+      success: false,
+      message: 'Fail to Logging out all sessions, try again later',
+    });
+  }
 
   sendResponse(res, {
     success: true,

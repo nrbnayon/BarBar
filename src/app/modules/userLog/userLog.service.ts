@@ -1,9 +1,15 @@
 import { Request, Response } from 'express';
 import axios from 'axios';
 import { UAParser } from 'ua-parser-js';
+import { Types } from 'mongoose';
 import { IUserLog } from './userLog.interface';
 import { UserLog } from './userLog.model';
 import { logger } from '../../../shared/logger';
+
+interface DeviceInfo {
+  userAgent: string;
+  ip: string;
+}
 
 const createLoginLog = async (req: Request, userId: string, email: string) => {
   try {
@@ -38,7 +44,6 @@ const createLoginLog = async (req: Request, userId: string, email: string) => {
     });
 
     if (existingLog) {
-      // Update the login time of the existing log
       existingLog.loginTime = new Date();
       await existingLog.save();
       logger.info(
@@ -47,7 +52,6 @@ const createLoginLog = async (req: Request, userId: string, email: string) => {
       return existingLog;
     }
 
-    // Fetch location data only if we need to create a new log
     let locationData = { city: 'Unknown', country: 'Unknown', lat: 0, lon: 0 };
     if (ip !== 'localhost' && ip !== '127.0.0.1') {
       try {
@@ -58,7 +62,6 @@ const createLoginLog = async (req: Request, userId: string, email: string) => {
       }
     }
 
-    // Create a new log if no existing log is found
     const logData: Partial<IUserLog> = {
       userId,
       email,
@@ -92,16 +95,22 @@ const updateLogoutTime = async (
   userId: string,
   res: Response,
   logId?: string,
-  deviceInfo?: { userAgent: string; ip: string }
+  deviceInfo?: DeviceInfo
 ) => {
   try {
-    const query: any = { userId, status: 'active' };
+    if (!userId) {
+      throw new Error('userId is required');
+    }
+
+    const query: Record<string, any> = { userId, status: 'active' };
+    logger.debug('Logout attempt', { userId, logId, deviceInfo });
 
     if (logId) {
-      // If logId is provided, update only that specific log
-      query._id = logId;
+      if (!Types.ObjectId.isValid(logId)) {
+        throw new Error('Invalid logId format');
+      }
+      query._id = new Types.ObjectId(logId);
     } else if (deviceInfo) {
-      // If deviceInfo is provided, update the log for the specific device and IP
       const parser = new UAParser(deviceInfo.userAgent);
       const osInfo = parser.getOS();
       const deviceInfoParsed = parser.getDevice();
@@ -119,25 +128,45 @@ const updateLogoutTime = async (
       query['location.ip'] = deviceInfo.ip;
       query.device = deviceString;
     }
-    // If neither logId nor deviceInfo is provided, it will log out all active sessions for the user
 
     const update = {
-      logoutTime: new Date(),
-      status: 'logged_out',
+      $set: {
+        logoutTime: new Date(),
+        status: 'logged_out',
+      },
     };
 
     const result = await UserLog.updateMany(query, update);
-    await UserLog.deleteMany(query, update);
 
-    // Clear cookies
-    res.clearCookie('accessToken', {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-    });
-    res.clearCookie('refreshToken', {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-    });
+    if (result.modifiedCount > 0) {
+      logger.info(
+        `User's sessions logged out - Count: ${result.modifiedCount}`
+      );
+
+      if ((logId && userId) || deviceInfo) {
+        if (logId) {
+          const deletedLog = await UserLog.findOneAndDelete({
+            _id: logId,
+            userId,
+            status: 'logged_out',
+          });
+
+          if (!deletedLog) {
+            throw new Error('User not authorized to logout this session');
+          }
+        }
+
+        const cookieOptions = {
+          httpOnly: true,
+          secure: process.env.NODE_ENV === 'production',
+          sameSite: 'strict' as const,
+          path: '/',
+        };
+
+        res.clearCookie('accessToken', cookieOptions);
+        res.clearCookie('refreshToken', cookieOptions);
+      }
+    }
 
     logger.info(
       `User logout logged - UserID: ${userId}${
@@ -150,7 +179,11 @@ const updateLogoutTime = async (
     );
     return result;
   } catch (error) {
-    logger.error('Error updating logout time:', error);
+    logger.error('Error updating logout time:', {
+      userId,
+      logId,
+      error: error instanceof Error ? error.message : 'Unknown error',
+    });
     throw error;
   }
 };

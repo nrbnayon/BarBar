@@ -19,6 +19,7 @@ import { ColourRoutes } from '../app/modules/colours/colours.route';
 import { SizeRoutes } from '../app/modules/size/size.route';
 import { MessageRoutes } from '../app/modules/messages/messages.route';
 import { ChatRoutes } from '../app/modules/chat/chat.route';
+import { UserLogRoutes } from '../app/modules/userLog/userLog.route';
 
 const router = express.Router();
 
@@ -42,6 +43,7 @@ const apiRoutes = [
   { path: '/size', route: SizeRoutes },
   { path: '/message', route: MessageRoutes },
   { path: '/chat', route: ChatRoutes },
+  { path: '/device', route: UserLogRoutes },
 ];
 
 apiRoutes.forEach(route => router.use(route.path, route.route));
