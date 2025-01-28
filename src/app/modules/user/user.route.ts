@@ -13,6 +13,7 @@ router.post(
   fileUploadHandler(),
 
   (req: Request, res: Response, next: NextFunction) => {
+    console.log("Data: ", req.body)
     const userData =
       typeof req.body.data === 'string'
         ? JSON.parse(req.body.data)

@@ -1,13 +1,20 @@
 import { z } from 'zod';
-
 const createUserZodSchema = z.object({
-  name: z.string({ required_error: 'First name is required' }),
-  email: z.string({ required_error: 'Email name is required' }),
-  phone: z.string({ required_error: 'Phone name is required' }),
-  password: z.string({ required_error: 'Password is required' }),
+  name: z.string().min(1, { message: 'Name is required' }),
+  email: z.string().email({ message: 'Invalid email format' }),
+  password: z
+    .string()
+    .min(6, { message: 'Password must be at least 6 characters' }),
+  role: z.enum(['USER', 'ADMIN', 'HOST']).optional(),
+  phone: z.string().optional(),
+  image: z.string().optional(),
+  profileImage: z.string().url().optional(),
   address: z.string().optional(),
   postCode: z.string().optional(),
-  profileImage: z.string().optional(),
+  gender: z.enum(['male', 'female', 'other']).optional(),
+  dateOfBirth: z
+    .string()
+    .datetime({ message: 'Invalid date format. Use ISO 8601 format.' }),
 });
 
 const updateZodSchema = z.object({
