@@ -1,4 +1,4 @@
-import { Model, Types } from 'mongoose';
+import { Model } from 'mongoose';
 import { USER_ROLES } from '../../../enums/user';
 
 export type IUser = {
@@ -10,11 +10,21 @@ export type IUser = {
   postCode: string;
   address?: string;
   country?: string;
-  status: 'active' | 'delete';
+  appId?: string;
+  fcmToken?: string;
+  status:
+    | 'active'
+    | 'deactivate'
+    | 'delete'
+    | 'block'
+    | 'pending'
+    | 'inactive'
+    | 'approved';
   verified: boolean;
+  gender: 'male' | 'female' | 'other';
+  dateOfBirth: Date;
   profileImage: string;
   image: string;
-  isChatAdmin?: boolean;
   onlineStatus?: boolean;
   lastActiveAt?: Date;
   authentication?: {

@@ -46,8 +46,24 @@ const userSchema = new Schema<IUser, UserModal>(
     },
     status: {
       type: String,
-      enum: ['active', 'delete'],
+      enum: [
+        'active',
+        'deactivate',
+        'delete',
+        'block',
+        'pending',
+        'inactive',
+        'approved',
+      ],
       default: 'active',
+    },
+    gender: {
+      type: String,
+      enum: ['male', 'female', 'other'],
+    },
+
+    dateOfBirth: {
+      type: Date,
     },
     verified: {
       type: Boolean,
@@ -61,9 +77,11 @@ const userSchema = new Schema<IUser, UserModal>(
       default:
         'https://www.shutterstock.com/shutterstock/photos/1153673752/display_1500/stock-vector-profile-placeholder-image-gray-silhouette-no-photo-1153673752.jpg',
     },
-    isChatAdmin: {
-      type: Boolean,
-      default: false,
+    appId: {
+      type: String,
+    },
+    fcmToken: {
+      type: String,
     },
     onlineStatus: {
       type: Boolean,
