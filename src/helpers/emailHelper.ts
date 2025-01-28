@@ -13,12 +13,12 @@ const transporter = nodemailer.createTransport({
   },
 });
 
-console.log('Send email', config.email.user);
+console.log('Send email to otp::', config.email.user);
 
 const sendEmail = async (values: ISendEmail) => {
   try {
     const info = await transporter.sendMail({
-      from: `"DOG_CLOTH" ${config.email.from}`,
+      from: `"BarBar" ${config.email.from}`,
       to: values.to,
       subject: values.subject,
       html: values.html,
