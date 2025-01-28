@@ -1,13 +1,15 @@
+// src\app\modules\auth\auth.controller.ts
 import { Request, Response } from 'express';
 import { StatusCodes } from 'http-status-codes';
 import catchAsync from '../../../shared/catchAsync';
 import sendResponse from '../../../shared/sendResponse';
 import { AuthService } from './auth.service';
 import config from '../../../config';
+import { UserLogService } from '../userLog/userLog.service';
+import jwt, { JwtPayload } from 'jsonwebtoken';
 
 const verifyEmail = catchAsync(async (req: Request, res: Response) => {
   const { ...verifyData } = req.body;
-  console.log('OTP Verification Email Line 101::', verifyData);
 
   const result = await AuthService.verifyEmailToDB(verifyData);
 
@@ -23,6 +25,16 @@ const loginUser = catchAsync(async (req: Request, res: Response) => {
   const { ...loginData } = req.body;
   const result = await AuthService.loginUserFromDB(loginData);
 
+  // Decode the accessToken to get the userId
+  const decodedToken = jwt.decode(result.accessToken) as JwtPayload;
+  const userId = decodedToken?.id; // Extract the `id` field
+
+  if (!userId) {
+    throw new Error('Failed to decode user ID from accessToken');
+  }
+
+  // Log user activity
+  await UserLogService.createLoginLog(req, userId, loginData.email); 
   res.cookie('refreshToken', result.refreshToken, {
     secure: config.node_env === 'production',
     httpOnly: true,
@@ -112,6 +124,22 @@ const resendVerificationEmail = catchAsync(
   }
 );
 
+const logout = catchAsync(async (req: Request, res: Response) => {
+  const user = req.user;
+  const userId = user?.id || user._id || user.userId;
+
+  const result = await AuthService.logoutUser(userId, res);
+  res.clearCookie('accessToken');
+  res.clearCookie('refreshToken');
+
+  return sendResponse(res, {
+    success: true,
+    statusCode: StatusCodes.OK,
+    message: 'Logged out successfully 🚀',
+    data: null,
+  });
+});
+
 export const AuthController = {
   verifyEmail,
   loginUser,
@@ -121,4 +149,5 @@ export const AuthController = {
   deleteAccount,
   newAccessToken,
   resendVerificationEmail,
+  logout,
 };

@@ -46,5 +46,9 @@ router.post(
   validateRequest(AuthValidation.createChangePasswordZodSchema),
   AuthController.changePassword
 );
-
+router.post(
+  '/logout',
+  auth(USER_ROLES.ADMIN, USER_ROLES.USER),
+  AuthController.logout
+);
 export const AuthRoutes = router;

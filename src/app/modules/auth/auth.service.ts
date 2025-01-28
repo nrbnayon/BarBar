@@ -1,3 +1,4 @@
+// src\app\modules\auth\auth.service.ts
 import bcrypt from 'bcrypt';
 import { StatusCodes } from 'http-status-codes';
 import { JwtPayload, Secret } from 'jsonwebtoken';
@@ -17,6 +18,8 @@ import generateOTP from '../../../util/generateOTP';
 
 import { User } from '../user/user.model';
 import { ResetToken } from '../resetToken/resetToken.model';
+import { UserLogService } from '../userLog/userLog.service';
+import { Response } from 'express';
 
 //login
 const loginUserFromDB = async (payload: ILoginData) => {
@@ -367,6 +370,30 @@ const resendVerificationEmailToDB = async (email: string) => {
   }
 };
 
+const logoutUser = async (
+  userId: string,
+  res: Response<any, Record<string, any>>
+) => {
+  const result = await User.findByIdAndUpdate(userId, {
+    $set: {
+      onlineStatus: false,
+      lastActiveAt: new Date(),
+    },
+  });
+
+  if (!userId) {
+    throw new ApiError(
+      StatusCodes.NOT_FOUND,
+      'User with this id does not exist!'
+    );
+  }
+
+  // Update UserLog and clear cookies
+  const userLogRemove = await UserLogService.updateLogoutTime(userId, res);
+
+  return result;
+};
+
 export const AuthService = {
   verifyEmailToDB,
   loginUserFromDB,
@@ -376,4 +403,5 @@ export const AuthService = {
   deleteAccountToDB,
   newAccessTokenToUser,
   resendVerificationEmailToDB,
+  logoutUser,
 };

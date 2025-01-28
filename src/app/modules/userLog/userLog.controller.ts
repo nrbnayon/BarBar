@@ -3,6 +3,7 @@ import { StatusCodes } from 'http-status-codes';
 import catchAsync from '../../../shared/catchAsync';
 import { UserLogService } from './userLog.service';
 import sendResponse from '../../../shared/sendResponse';
+import { UserLog } from './userLog.model';
 
 const getUserLogs = catchAsync(async (req: Request, res: Response) => {
   const userId = req.user?.id;
@@ -16,6 +17,63 @@ const getUserLogs = catchAsync(async (req: Request, res: Response) => {
   });
 });
 
+const getActiveSessions = catchAsync(async (req: Request, res: Response) => {
+  const userId = req.user?.id;
+  const result = await UserLogService.getActiveSessions(userId);
+
+  sendResponse(res, {
+    success: true,
+    statusCode: StatusCodes.OK,
+    message: 'Active sessions retrieved successfully',
+    data: result,
+  });
+});
+
+const logoutSession = catchAsync(async (req: Request, res: Response) => {
+  const userId = req.user?.id;
+  const { sessionId } = req.params;
+
+  const currentSessionLog = await UserLog.findOne({
+    _id: sessionId,
+    userId,
+    status: 'active',
+  });
+
+  const currentUserAgent = req.headers['user-agent'];
+  const isCurrentSession = currentSessionLog?.browser?.includes(
+    currentUserAgent || ''
+  );
+
+  await UserLogService.updateLogoutTime(
+    userId,
+    res,
+    isCurrentSession ? sessionId : undefined
+  );
+
+  sendResponse(res, {
+    success: true,
+    statusCode: StatusCodes.OK,
+    message: 'Session logged out successfully',
+    data: null,
+  });
+});
+
+const logoutAllSessions = catchAsync(async (req: Request, res: Response) => {
+  const userId = req.user?.id;
+
+  await UserLogService.updateLogoutTime(userId, res);
+
+  sendResponse(res, {
+    success: true,
+    statusCode: StatusCodes.OK,
+    message: 'All sessions logged out successfully',
+    data: null,
+  });
+});
+
 export const UserLogController = {
   getUserLogs,
+  getActiveSessions,
+  logoutSession,
+  logoutAllSessions,
 };

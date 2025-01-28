@@ -1,4 +1,3 @@
-// src\app\modules\userLog\userLog.model.ts
 import { Schema, model } from 'mongoose';
 import { IUserLog } from './userLog.interface';
 
