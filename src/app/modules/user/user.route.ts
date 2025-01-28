@@ -3,7 +3,6 @@ import express, { NextFunction, Request, Response } from 'express';
 import { USER_ROLES } from '../../../enums/user';
 import auth from '../../middlewares/auth';
 import fileUploadHandler from '../../middlewares/fileUploadHandler';
-
 import { UserController } from './user.controller';
 import { UserValidation } from './user.validation';
 const router = express.Router();
@@ -11,16 +10,26 @@ const router = express.Router();
 router.post(
   '/create-user',
   fileUploadHandler(),
-
   (req: Request, res: Response, next: NextFunction) => {
-    console.log("Data: ", req.body)
-    const userData =
-      typeof req.body.data === 'string'
-        ? JSON.parse(req.body.data)
-        : req.body.data;
+    try {
+      // Extract the image path if an image was uploaded
+      let image;
+      if (req.files && 'image' in req.files && req.files.image[0]) {
+        image = `/images/${req.files.image[0].filename}`;
+      }
+      const userData = {
+        name: req.body.fullName || req.body.fullName,
+        ...req.body,
+        image: image,
+      };
+      // Validate the combined data
+      const validatedData = UserValidation.createUserZodSchema.parse(userData);
+      req.body = validatedData;
 
-    req.body = UserValidation.createUserZodSchema.parse(userData);
-    return UserController.createUser(req, res, next);
+      return UserController.createUser(req, res, next);
+    } catch (error) {
+      next(error);
+    }
   }
 );
 
@@ -63,7 +72,11 @@ router.get(
   UserController.getUserProfile
 );
 
-router.get('/get-all-users', auth(USER_ROLES.ADMIN, USER_ROLES.USER), UserController.getAllUser);
+router.get(
+  '/get-all-users',
+  auth(USER_ROLES.ADMIN, USER_ROLES.USER),
+  UserController.getAllUser
+);
 
 router.get(
   '/get-all-users/:id',

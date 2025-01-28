@@ -10,11 +10,8 @@ const createUser = catchAsync(
   async (req: Request, res: Response, next: NextFunction) => {
     try {
       const value = { ...req.body };
-
-      // Call the service function and capture the result
+      console.log('createUser value', value);
       const result = await UserService.createUserFromDb(value);
-
-      // Send response with the email from the result
       sendResponse(res, {
         success: true,
         statusCode: StatusCodes.OK,

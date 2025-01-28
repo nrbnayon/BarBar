@@ -1,5 +1,6 @@
 {
-  "name": "real-time-chatting-backend",
+  "private": true,
+  "name": "barbar-backend",
   "version": "1.0.0",
   "description": "",
   "main": "index.js",

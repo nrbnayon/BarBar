@@ -70,7 +70,7 @@ const logoutAllSessions = catchAsync(async (req: Request, res: Response) => {
   } else {
     return res.status(500).json({
       success: false,
-      message: 'Fail to Logging out all sessions, try again later',
+      message: 'Failed to Logging out all sessions, try again later',
     });
   }
 
