@@ -4,6 +4,12 @@ import { ICategory } from './category.interface';
 import { Category } from './category.model';
 
 const createCategoryToDB = async (payload: Partial<ICategory>) => {
+  console.log('Creating category payload...', payload);
+  // Validate required fields
+  if (!payload.name) {
+    throw new ApiError(StatusCodes.BAD_REQUEST, 'Category name is required');
+  }
+
   const result = await Category.create(payload);
 
   if (!result) {

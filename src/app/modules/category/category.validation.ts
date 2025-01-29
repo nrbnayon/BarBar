@@ -1,15 +1,14 @@
 import { z } from 'zod';
 
 const createCategorySchema = z.object({
-  body: z.object({
-    name: z.string({ required_error: 'Category name is required' }),
-  }),
+  name: z.string({ required_error: 'Category name is required' }),
+  image: z.string({ required_error: 'Category image is required' }),
 });
 
 const updatedCategorySchema = z.object({
-  body: z.object({
-    name: z.string().optional(),
-  }),
+  name: z.string().optional(),
+  image: z.string().optional(),
+  enum: z.enum(['active', 'delete']).optional(),
 });
 
 export const CategoryValidation = {

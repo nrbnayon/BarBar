@@ -10,7 +10,11 @@ const categorySchema = new Schema<ICategory>(
       required: true,
       trim: true,
     },
-
+    image: {
+      type: String,
+      default:
+        'https://qc.cdn.data.nasdaq.com/assets/images/hero-bkg-764e08457f41a9cdc00603bd399e6195.jpg',
+    },
     status: {
       type: String,
       enum: ['active', 'delete'],

@@ -99,8 +99,8 @@ const getOnlineUsers = catchAsync(async (req: Request, res: Response) => {
 });
 
 const updateOnlineStatus = catchAsync(async (req: Request, res: Response) => {
-  console.log('first update', req.user);
-  console.log('user updated line 112', req.body);
+  // console.log('first update', req.user);
+  // console.log('user updated line 112', req.body);
   const { userId, status } = req.body;
   // Input validation
   if (!userId || typeof status !== 'boolean') {
