@@ -10,11 +10,7 @@ const createUser = catchAsync(
   async (req: Request, res: Response, next: NextFunction) => {
     try {
       const value = { ...req.body };
-
-      // Call the service function and capture the result
       const result = await UserService.createUserFromDb(value);
-
-      // Send response with the email from the result
       sendResponse(res, {
         success: true,
         statusCode: StatusCodes.OK,
@@ -45,24 +41,19 @@ const getUserProfile = catchAsync(async (req: Request, res: Response) => {
   });
 });
 
-//update profile
 const updateProfile = catchAsync(
   async (req: Request, res: Response, next: NextFunction) => {
     const user = req.user;
+    const updateData = req.body;
 
-    let image;
+    // Handle image if it exists
     if (req.files && 'image' in req.files && req.files.image[0]) {
-      image = `/images/${req.files.image[0].filename}`;
+      updateData.image = `/images/${req.files.image[0].filename}`;
     }
 
-    const value = {
-      image,
-      ...req.body,
-    };
+    const result = await UserService.updateProfileToDB(user, updateData);
 
-    console.log(value);
-
-    const result = await UserService.updateProfileToDB(user, value);
+    // console.log('User updated', result);
 
     sendResponse(res, {
       success: true,
@@ -72,7 +63,6 @@ const updateProfile = catchAsync(
     });
   }
 );
-
 const getAllUser = catchAsync(async (req: Request, res: Response) => {
   const result = await UserService.getAllUsers(req.query);
 
@@ -109,8 +99,8 @@ const getOnlineUsers = catchAsync(async (req: Request, res: Response) => {
 });
 
 const updateOnlineStatus = catchAsync(async (req: Request, res: Response) => {
-  console.log('user updated line 112', req.body);
   console.log('first update', req.user);
+  console.log('user updated line 112', req.body);
   const { userId, status } = req.body;
   // Input validation
   if (!userId || typeof status !== 'boolean') {

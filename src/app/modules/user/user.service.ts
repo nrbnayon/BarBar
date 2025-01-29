@@ -15,13 +15,16 @@ import unlinkFile from '../../../shared/unlinkFile';
 import { logger } from '../../../shared/logger';
 
 const createUserFromDb = async (payload: IUser) => {
-  payload.role = USER_ROLES.USER;
+  // payload.role = USER_ROLES.USER;
 
   try {
     const result = await User.create(payload);
 
     if (!result) {
-      throw new ApiError(StatusCodes.BAD_REQUEST, 'User creation failed');
+      throw new ApiError(
+        StatusCodes.BAD_REQUEST,
+        'OOPS! Registration failed! Please try again'
+      );
     }
 
     const otp = generateOTP();
@@ -62,7 +65,7 @@ const createUserFromDb = async (payload: IUser) => {
   } catch (error) {
     throw new ApiError(
       StatusCodes.INTERNAL_SERVER_ERROR,
-      'User creation failed'
+      'OOPS! Registration failed! Please try again'
     );
   }
 };

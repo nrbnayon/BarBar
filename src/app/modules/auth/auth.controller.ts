@@ -34,7 +34,7 @@ const loginUser = catchAsync(async (req: Request, res: Response) => {
   }
 
   // Log user activity
-  await UserLogService.createLoginLog(req, userId, loginData.email); 
+  await UserLogService.createLoginLog(req, userId, loginData.email);
   res.cookie('refreshToken', result.refreshToken, {
     secure: config.node_env === 'production',
     httpOnly: true,
@@ -63,6 +63,8 @@ const forgetPassword = catchAsync(async (req: Request, res: Response) => {
 const resetPassword = catchAsync(async (req: Request, res: Response) => {
   const token = req.headers.authorization;
   const { ...resetData } = req.body;
+
+  // console.log('Reset Password Line 94::', token, resetData);
   const result = await AuthService.resetPasswordToDB(token!, resetData);
 
   sendResponse(res, {
@@ -111,7 +113,7 @@ const newAccessToken = catchAsync(async (req: Request, res: Response) => {
 
 const resendVerificationEmail = catchAsync(
   async (req: Request, res: Response) => {
-    // console.log('OTP Verification Email Line 101::', req.body);
+    // console.log('Resend Email Line 101::', req.body);
     const { email } = req.body;
     const result = await AuthService.resendVerificationEmailToDB(email);
 

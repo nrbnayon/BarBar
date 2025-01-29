@@ -12,6 +12,14 @@ router.post(
   AuthController.loginUser
 );
 
+router.post(
+  '/verify-email',
+  validateRequest(AuthValidation.createVerifyEmailZodSchema),
+  AuthController.verifyEmail
+);
+
+router.post('/resend-otp', AuthController.resendVerificationEmail);
+
 router.post('/refresh-token', AuthController.newAccessToken);
 
 router.post(
@@ -21,14 +29,6 @@ router.post(
 );
 
 router.post(
-  '/verify-email',
-  validateRequest(AuthValidation.createVerifyEmailZodSchema),
-  AuthController.verifyEmail
-);
-
-router.post('/resend-otp', AuthController.resendVerificationEmail);
-
-router.post(
   '/reset-password',
   validateRequest(AuthValidation.createResetPasswordZodSchema),
   AuthController.resetPassword
@@ -36,19 +36,19 @@ router.post(
 
 router.delete(
   '/delete-account',
-  auth(USER_ROLES.USER),
+  auth(USER_ROLES.USER, USER_ROLES.HOST),
   AuthController.deleteAccount
 );
 
 router.post(
   '/change-password',
-  auth(USER_ROLES.ADMIN, USER_ROLES.USER),
+  auth(USER_ROLES.ADMIN, USER_ROLES.USER, USER_ROLES.HOST),
   validateRequest(AuthValidation.createChangePasswordZodSchema),
   AuthController.changePassword
 );
 router.post(
   '/logout',
-  auth(USER_ROLES.ADMIN, USER_ROLES.USER),
+  auth(USER_ROLES.ADMIN, USER_ROLES.USER, USER_ROLES.HOST),
   AuthController.logout
 );
 export const AuthRoutes = router;

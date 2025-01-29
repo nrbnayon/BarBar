@@ -186,6 +186,7 @@ const resetPasswordToDB = async (
   token: string,
   payload: IAuthResetPassword
 ) => {
+  // console.log('object', token, payload);
   const { newPassword, confirmPassword } = payload;
   //isExist token
   const isExistToken = await ResetToken.isExistToken(token);
@@ -319,6 +320,7 @@ const newAccessTokenToUser = async (token: string) => {
 };
 
 const resendVerificationEmailToDB = async (email: string) => {
+  // console.log('Email from resendVerificationEmailToDB: ', email);
   // Find the user by email
   const existingUser: any = await User.findOne({ email: email }).lean();
 
