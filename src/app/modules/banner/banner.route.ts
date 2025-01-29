@@ -2,14 +2,17 @@ import express, { NextFunction, Request, Response } from 'express';
 import validateRequest from '../../middlewares/validateRequest';
 import auth from '../../middlewares/auth';
 import { USER_ROLES } from '../../../enums/user';
-import { CategoryValidation } from './category.validation';
-import { CategoryController } from './category.controller';
+import { BannerController } from './banner.controller';
 import fileUploadHandler from '../../middlewares/fileUploadHandler';
+import { bannerValidation } from './banner.validation';
 
 const router = express.Router();
 
+/**
+ * Create a new Banner
+ */
 router.post(
-  '/create-category',
+  '/create-banner',
   fileUploadHandler(),
   auth(USER_ROLES.ADMIN),
   (req: Request, res: Response, next: NextFunction) => {
@@ -19,34 +22,44 @@ router.post(
       if (req.files && 'image' in req.files && req.files.image[0]) {
         image = `/images/${req.files.image[0].filename}`;
       }
-      const categoryData = {
+
+      const bannerData = {
         ...req.body,
         image: image,
       };
-      console.log('New creating category data: ', categoryData);
+
+      console.log('New creating banner data: ', bannerData);
       const validatedData =
-        CategoryValidation.createCategorySchema.parse(categoryData);
+        bannerValidation.createBannerSchema.parse(bannerData);
       req.body = validatedData;
 
-      return CategoryController.createCategoryToDB(req, res, next);
+      return BannerController.createBanner(req, res, next);
     } catch (error) {
       next(error);
     }
   }
 );
 
+/**
+ * Get all Banners
+ */
 router.get(
   '/',
   // auth(USER_ROLES.ADMIN, USER_ROLES.USER, USER_ROLES.HOST),
-  CategoryController.getAllCategory
+  BannerController.getAllBanners
 );
 
+/**
+ * Get a single Banner by ID
+ */
 router.get(
   '/:id',
-  //   auth(USER_ROLES.ADMIN, USER_ROLES.USER, USER_ROLES.HOST),
-  CategoryController.getSingleCategory
+  BannerController.getSingleBanner
 );
 
+/**
+ * Update a Banner by ID
+ */
 router.patch(
   '/:id',
   fileUploadHandler(),
@@ -55,7 +68,7 @@ router.patch(
     try {
       let validatedData = { ...req.body };
       console.log(
-        'New creating category data: ',
+        'New updating banner data: ',
         validatedData,
         req.body,
         req.files
@@ -67,19 +80,19 @@ router.patch(
       console.log('Validated data', validatedData);
 
       const newValidateData =
-        CategoryValidation.updatedCategorySchema.parse(validatedData);
+        bannerValidation.updateBannerSchema.parse(validatedData);
       req.body = newValidateData;
-      await CategoryController.updateCategory(req, res, next);
+
+      await BannerController.updateBanner(req, res, next);
     } catch (error) {
       next(error);
     }
   }
 );
 
-router.delete(
-  '/:id',
-  auth(USER_ROLES.ADMIN),
-  CategoryController.deleteCategory
-);
+/**
+ * Delete a Banner by ID
+ */
+router.delete('/:id', auth(USER_ROLES.ADMIN), BannerController.deleteBanner);
 
-export const CategoryRoutes = router;
+export const BannerRoutes = router;

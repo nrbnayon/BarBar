@@ -8,6 +8,7 @@ import { BlogRoutes } from '../app/modules/blog/blog.route';
 import { CategoryRoutes } from '../app/modules/category/category.route';
 import { ProductRoutes } from '../app/modules/product/product.route';
 import { PaymentRoutes } from '../app/modules/payment/payment.route';
+import { BannerRoutes } from '../app/modules/banner/banner.route';
 import { ContactRoutes } from '../app/modules/contact/contact.route';
 import { ReviewRoutes } from '../app/modules/review/review.route';
 import { SettingRoutes } from '../app/modules/setting/setting.route';
@@ -30,6 +31,7 @@ const apiRoutes = [
   { path: '/faq', route: FaqRoutes },
   { path: '/blog', route: BlogRoutes },
   { path: '/category', route: CategoryRoutes },
+  { path: '/banner', route: BannerRoutes },
   { path: '/product', route: ProductRoutes },
   { path: '/payment', route: PaymentRoutes },
   { path: '/contact', route: ContactRoutes },

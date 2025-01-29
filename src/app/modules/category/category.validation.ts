@@ -8,7 +8,7 @@ const createCategorySchema = z.object({
 const updatedCategorySchema = z.object({
   name: z.string().optional(),
   image: z.string().optional(),
-  enum: z.enum(['active', 'delete']).optional(),
+  status: z.enum(['active', 'delete']).optional(),
 });
 
 export const CategoryValidation = {
