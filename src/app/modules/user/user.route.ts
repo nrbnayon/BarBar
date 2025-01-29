@@ -10,7 +10,7 @@ const router = express.Router();
 
 router.post(
   '/create-user',
-  fileUploadHandler(),
+  // fileUploadHandler(),
 
   (req: Request, res: Response, next: NextFunction) => {
     console.log("Data: ", req.body)
