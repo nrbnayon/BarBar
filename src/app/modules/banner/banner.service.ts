@@ -4,7 +4,7 @@ import { IBanner } from './banner.interface';
 import { Banner } from './banner.model';
 
 const createBanner = async (payload: Partial<IBanner>) => {
-  console.log('Creating banner payload...', payload);
+  // console.log('Creating banner payload...', payload);
   // Validate required fields
   if (!payload.name) {
     throw new ApiError(StatusCodes.BAD_REQUEST, 'Banner name is required');

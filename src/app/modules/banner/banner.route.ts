@@ -28,7 +28,7 @@ router.post(
         image: image,
       };
 
-      console.log('New creating banner data: ', bannerData);
+      // console.log('New creating banner data: ', bannerData);
       const validatedData =
         bannerValidation.createBannerSchema.parse(bannerData);
       req.body = validatedData;
