@@ -4,6 +4,12 @@ import { BusinessHours, ISalon, SalonModel } from './salon.interface';
 import { StatusCodes } from 'http-status-codes';
 import ApiError from '../../../errors/ApiError';
 
+const locationSchema = new Schema({
+  locationName: { type: String, required: true },
+  latitude: { type: Number, required: true },
+  longitude: { type: Number, required: true },
+});
+
 const businessHoursSchema = new Schema<BusinessHours>({
   day: {
     type: String,
@@ -40,10 +46,7 @@ const salonSchema = new Schema<ISalon, SalonModel>(
       required: true,
       unique: true,
     },
-    address: {
-      type: String,
-      required: true,
-    },
+    address: { type: locationSchema },
     phone: {
       type: String,
       required: true,

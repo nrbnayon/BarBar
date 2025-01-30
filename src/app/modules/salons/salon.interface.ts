@@ -1,6 +1,11 @@
 // src/app/modules/salons/salon.interface.ts
 import { Model, Types } from 'mongoose';
 
+export type Location = {
+  locationName: string;
+  latitude: number;
+  longitude: number;
+};
 export type BusinessHours = {
   day: string;
   startTime: string;
@@ -11,7 +16,7 @@ export type BusinessHours = {
 export type ISalon = {
   name: string;
   passportNum: string;
-  address: string;
+  address: Location;
   phone: string;
   image: string;
   bannerImage: string;
