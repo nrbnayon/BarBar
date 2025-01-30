@@ -5,6 +5,7 @@ import { USER_ROLES } from '../../../enums/user';
 import { BannerController } from './banner.controller';
 import fileUploadHandler from '../../middlewares/fileUploadHandler';
 import { bannerValidation } from './banner.validation';
+import getFilePath from '../../../shared/getFilePath';
 
 const router = express.Router();
 
@@ -18,16 +19,16 @@ router.post(
   (req: Request, res: Response, next: NextFunction) => {
     try {
       // Extract the image path if an image was uploaded
-      let image;
-      if (req.files && 'image' in req.files && req.files.image[0]) {
-        image = `/images/${req.files.image[0].filename}`;
-      }
-
       const bannerData = {
         ...req.body,
-        image: image,
       };
 
+      if (req.files) {
+        const imagePath = getFilePath(req.files, 'image');
+        if (imagePath) {
+          bannerData.image = imagePath;
+        }
+      }
       // console.log('New creating banner data: ', bannerData);
       const validatedData =
         bannerValidation.createBannerSchema.parse(bannerData);
@@ -52,10 +53,7 @@ router.get(
 /**
  * Get a single Banner by ID
  */
-router.get(
-  '/:id',
-  BannerController.getSingleBanner
-);
+router.get('/:id', BannerController.getSingleBanner);
 
 /**
  * Update a Banner by ID
@@ -67,17 +65,13 @@ router.patch(
   async (req: Request, res: Response, next: NextFunction) => {
     try {
       let validatedData = { ...req.body };
-      console.log(
-        'New updating banner data: ',
-        validatedData,
-        req.body,
-        req.files
-      );
 
-      if (req.files && 'image' in req.files && req.files.image[0]) {
-        validatedData.image = `/images/${req.files.image[0].filename}`;
+      if (req.files) {
+        const imagePath = getFilePath(req.files, 'image');
+        if (imagePath) {
+          validatedData.image = imagePath;
+        }
       }
-      console.log('Validated data', validatedData);
 
       const newValidateData =
         bannerValidation.updateBannerSchema.parse(validatedData);

@@ -1,3 +1,4 @@
+// src\app\modules\schedule\schedule.model.ts
 import { Schema, model } from 'mongoose';
 import { ISchedule, ScheduleModel } from './schedule.interface';
 

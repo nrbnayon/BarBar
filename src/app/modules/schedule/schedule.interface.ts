@@ -1,3 +1,4 @@
+// src\app\modules\schedule\schedule.interface.ts
 import { Model, Types } from 'mongoose';
 
 export type ISchedule = {

@@ -5,6 +5,7 @@ import auth from '../../middlewares/auth';
 import fileUploadHandler from '../../middlewares/fileUploadHandler';
 import { UserController } from './user.controller';
 import { UserValidation } from './user.validation';
+import getFilePath from '../../../shared/getFilePath';
 const router = express.Router();
 
 router.post(
@@ -12,22 +13,19 @@ router.post(
   fileUploadHandler(),
   (req: Request, res: Response, next: NextFunction) => {
     try {
-      // Extract the image path if an image was uploaded
-      let image;
-      if (req.files && 'image' in req.files && req.files.image[0]) {
-        image = `/images/${req.files.image[0].filename}`;
-      }
       const userData = {
-        name:
-          req.body?.name ||
-          req.body?.fullName ||
-          req.body?.data?.fullName ||
-          req.body?.data?.name,
         ...req.body,
-        image: image,
       };
+      console.log('New creating user data: ', userData);
 
-      // console.log('New creating user data: ', userData);
+      if (req.files) {
+        const imagePath = getFilePath(req.files, 'image');
+        if (imagePath) {
+          userData.image = imagePath;
+        }
+      }
+
+      console.log('New creating user data: ', userData);
       // Validate the combined data
       const validatedData = UserValidation.createUserZodSchema.parse(userData);
       req.body = validatedData;
@@ -48,13 +46,16 @@ router.patch(
       let validatedData = { ...req.body };
 
       // Handle image if present
-      if (req.files && 'image' in req.files && req.files.image[0]) {
-        validatedData.image = `/images/${req.files.image[0].filename}`;
+      if (req.files) {
+        const imagePath = getFilePath(req.files, 'image');
+        if (imagePath) {
+          validatedData.image = imagePath;
+        }
       }
-
-      // Validate the data
       const validatedUserData =
         UserValidation.updateZodSchema.parse(validatedData);
+
+      req.body = validatedUserData;
 
       await UserController.updateProfile(req, res, next);
     } catch (error) {

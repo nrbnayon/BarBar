@@ -5,6 +5,7 @@ import auth from '../../middlewares/auth';
 import fileUploadHandler from '../../middlewares/fileUploadHandler';
 import { SalonController } from './salon.controller';
 import { SalonValidation } from './salon.validation';
+import getFilePath from '../../../shared/getFilePath';
 const router = express.Router();
 
 router.post(
@@ -19,10 +20,14 @@ router.post(
         ...req.body,
         host: user.id,
       };
-      if (req.files && 'image' in req.files && req.files.image[0]) {
-        salonData.image = `/images/${req.files.image[0].filename}`;
+
+      if (req.files) {
+        const imagePath = getFilePath(req.files, 'image');
+        if (imagePath) {
+          salonData.image = imagePath;
+        }
       }
-      console.log('New creating new salon: ', salonData);
+
       const validatedData =
         SalonValidation.createSalonZodSchema.parse(salonData);
       req.body = validatedData;
@@ -40,19 +45,17 @@ router.patch(
   auth(USER_ROLES.HOST, USER_ROLES.ADMIN),
   async (req: Request, res: Response, next: NextFunction) => {
     try {
-      let validatedData = { ...req.body };
+      let updateSalonData = { ...req.body };
       // Handle image if present
-      if (req.files && 'image' in req.files && req.files.image[0]) {
-        validatedData.image = `/images/${req.files.image[0].filename}`;
+      if (req.files) {
+        const imagePath = getFilePath(req.files, 'image');
+        if (imagePath) {
+          updateSalonData.image = imagePath;
+        }
       }
-      console.log(
-        'Updating salon data: ',
-        validatedData,
-        ' with id: ',
-        req.params.id
-      );
-      // Validate the data
-      SalonValidation.updateSalonZodSchema.parse(validatedData);
+
+      const validatedData =
+        SalonValidation.updateSalonZodSchema.parse(updateSalonData);
       req.body = validatedData;
       await SalonController.updateSalon(req, res, next);
     } catch (error) {

@@ -1,25 +1,26 @@
+// src/shared/getFilePath.ts
 type IFolderName = 'image' | 'media' | 'doc' | 'images' | 'medias' | 'docs';
 
 export const getFilePathMultiple = (
   files: any,
-  fieldname: any,
+  fieldname: string,
   folderName: IFolderName
-) => {
-  let value: any;
-  Object.entries(files).forEach(([key, _value]: any) => {
-    if (fieldname === key) {
-      value = _value.map((v: any) => `/${folderName}s/${v.filename}`);
-    }
-  });
+): string[] | undefined => {
+  if (!files || !files[fieldname]) {
+    return undefined;
+  }
 
-  return value;
+  return files[fieldname].map(
+    (file: any) => `/${folderName}s/${file.filename}`
+  );
 };
 
-const getFilePath = (files: any, folderName: IFolderName) => {
-  if (files && files.image[0].fieldname in files && files.image[0]) {
-    return `/${folderName}/${files.image[0].filename}`;
+const getFilePath = (files: any, folderName: IFolderName): string | null => {
+  if (!files || !('image' in files) || !files.image[0]) {
+    return null;  
   }
-  return null;
+
+  return `/${folderName}/${files.image[0].filename}`;
 };
 
 export default getFilePath;

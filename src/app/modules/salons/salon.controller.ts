@@ -64,13 +64,13 @@ const getSalonsByCategory = catchAsync(async (req: Request, res: Response) => {
 
 const updateSalon = catchAsync(
   async (req: Request, res: Response, next: NextFunction) => {
-    const host = req.user;
+    const hostId = req.user.id;
     const salonId = req.params.id;
     const updateNewData = req.body;
 
-    console.log('New image path:', updateNewData);
+    console.log('New Update valid data:', updateNewData);
 
-    const result = await SalonService.updateSalon(host, req.body, salonId);
+    const result = await SalonService.updateSalon(hostId, req.body, salonId);
 
     sendResponse(res, {
       success: true,

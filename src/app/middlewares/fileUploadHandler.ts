@@ -1,4 +1,4 @@
-// src\app\middlewares\fileUploadHandler.ts
+// src/app/middlewares/fileUploadHandler.ts
 import { Request } from 'express';
 import fs from 'fs';
 import { StatusCodes } from 'http-status-codes';
@@ -7,23 +7,22 @@ import path from 'path';
 import ApiError from '../../errors/ApiError';
 
 const fileUploadHandler = () => {
-  //create upload folder
+  // Create upload folder
   const baseUploadDir = path.join(process.cwd(), 'uploads');
   if (!fs.existsSync(baseUploadDir)) {
     fs.mkdirSync(baseUploadDir);
   }
 
-  //folder create for different file
+  // Folder create for different file
   const createDir = (dirPath: string) => {
     if (!fs.existsSync(dirPath)) {
       fs.mkdirSync(dirPath);
     }
   };
 
-  //create filename
+  // Create filename
   const storage = multer.diskStorage({
     destination: (req, file, cb) => {
-      // console.log('File get::: ', file);
       let uploadDir;
       switch (file.fieldname) {
         case 'image':
@@ -55,53 +54,61 @@ const fileUploadHandler = () => {
     },
   });
 
-  //file filter
+  // File filter
   const filterFilter = (req: Request, file: any, cb: FileFilterCallback) => {
-    if (file.fieldname === 'image') {
-      if (
-        file.mimetype === 'image/jpeg' ||
-        file.mimetype === 'image/png' ||
-        file.mimetype === 'image/jpg'
-      ) {
-        cb(null, true);
+    try {
+      if (file.fieldname === 'image') {
+        if (
+          file.mimetype === 'image/jpeg' ||
+          file.mimetype === 'image/png' ||
+          file.mimetype === 'image/jpg'
+        ) {
+          cb(null, true);
+        } else {
+          cb(
+            new ApiError(
+              StatusCodes.BAD_REQUEST,
+              'Only .jpeg, .png, .jpg file supported'
+            )
+          );
+        }
+      } else if (file.fieldname === 'media') {
+        if (file.mimetype === 'video/mp4' || file.mimetype === 'audio/mpeg') {
+          cb(null, true);
+        } else {
+          cb(
+            new ApiError(
+              StatusCodes.BAD_REQUEST,
+              'Only .mp4, .mp3, file supported'
+            )
+          );
+        }
+      } else if (file.fieldname === 'doc') {
+        if (file.mimetype === 'application/pdf') {
+          cb(null, true);
+        } else {
+          cb(new ApiError(StatusCodes.BAD_REQUEST, 'Only pdf supported'));
+        }
       } else {
-        cb(
-          new ApiError(
-            StatusCodes.BAD_REQUEST,
-            'Only .jpeg, .png, .jpg file supported'
-          )
-        );
+        cb(new ApiError(StatusCodes.BAD_REQUEST, 'This file is not supported'));
       }
-    } else if (file.fieldname === 'media') {
-      if (file.mimetype === 'video/mp4' || file.mimetype === 'audio/mpeg') {
-        cb(null, true);
-      } else {
-        cb(
-          new ApiError(
-            StatusCodes.BAD_REQUEST,
-            'Only .mp4, .mp3, file supported'
-          )
-        );
-      }
-    } else if (file.fieldname === 'doc') {
-      if (file.mimetype === 'application/pdf') {
-        cb(null, true);
-      } else {
-        cb(new ApiError(StatusCodes.BAD_REQUEST, 'Only pdf supported'));
-      }
-    } else {
-      throw new ApiError(StatusCodes.BAD_REQUEST, 'This file is not supported');
+    } catch (error) {
+      cb(error as Error);
     }
   };
 
   const upload = multer({
     storage: storage,
     fileFilter: filterFilter,
+    limits: {
+      fileSize: 10 * 1024 * 1024, // 10MB
+    },
   }).fields([
     { name: 'image', maxCount: 3 },
     { name: 'media', maxCount: 3 },
     { name: 'doc', maxCount: 3 },
   ]);
+
   return upload;
 };
 

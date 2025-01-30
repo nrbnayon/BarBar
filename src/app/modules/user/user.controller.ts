@@ -30,7 +30,6 @@ const createUser = catchAsync(
 
 const getUserProfile = catchAsync(async (req: Request, res: Response) => {
   const user = req.user;
-  // console.log('Request user', user);
   const result = await UserService.getUserProfileFromDB(user);
 
   sendResponse(res, {
@@ -46,14 +45,9 @@ const updateProfile = catchAsync(
     const user = req.user;
     const updateData = req.body;
 
-    // Handle image if it exists
-    if (req.files && 'image' in req.files && req.files.image[0]) {
-      updateData.image = `/images/${req.files.image[0].filename}`;
-    }
-
     const result = await UserService.updateProfileToDB(user, updateData);
 
-    // console.log('User updated', result);
+    console.log('User updated', result);
 
     sendResponse(res, {
       success: true,
