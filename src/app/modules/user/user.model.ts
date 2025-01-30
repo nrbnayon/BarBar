@@ -59,7 +59,7 @@ const userSchema = new Schema<IUser, UserModal>(
     },
     gender: {
       type: String,
-      enum: ['male', 'female', 'other'],
+      enum: ['male', 'female', 'both'],
     },
 
     dateOfBirth: {

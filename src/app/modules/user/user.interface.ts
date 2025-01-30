@@ -1,3 +1,5 @@
+// src\app\modules\user\user.interface.ts
+
 import { Model } from 'mongoose';
 import { USER_ROLES } from '../../../enums/user';
 
@@ -21,7 +23,7 @@ export type IUser = {
     | 'inactive'
     | 'approved';
   verified: boolean;
-  gender: 'male' | 'female' | 'other';
+  gender: 'male' | 'female' | 'both';
   dateOfBirth: Date;
   profileImage: string;
   image: string;

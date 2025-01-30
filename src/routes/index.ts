@@ -21,21 +21,24 @@ import { SizeRoutes } from '../app/modules/size/size.route';
 import { MessageRoutes } from '../app/modules/messages/messages.route';
 import { ChatRoutes } from '../app/modules/chat/chat.route';
 import { UserLogRoutes } from '../app/modules/userLog/userLog.route';
+import { SalonRoutes } from '../app/modules/salons/salon.route';
 
 const router = express.Router();
 
 const apiRoutes = [
   { path: '/user', route: UserRoutes },
   { path: '/auth', route: AuthRoutes },
-  { path: '/petProfile', route: PetProfileRoutes },
-  { path: '/faq', route: FaqRoutes },
+
   { path: '/blog', route: BlogRoutes },
   { path: '/category', route: CategoryRoutes },
   { path: '/banner', route: BannerRoutes },
+  { path: '/salon', route: SalonRoutes },
   { path: '/product', route: ProductRoutes },
   { path: '/payment', route: PaymentRoutes },
   { path: '/contact', route: ContactRoutes },
   { path: '/review', route: ReviewRoutes },
+  { path: '/petProfile', route: PetProfileRoutes },
+  { path: '/faq', route: FaqRoutes },
   { path: '/setting', route: SettingRoutes },
   { path: '/wishList', route: WishlistRoutes },
   { path: '/notification', route: NotificationRoutes },

@@ -1,3 +1,5 @@
+// src\app\modules\user\user.validation.ts
+
 import { z } from 'zod';
 const createUserZodSchema = z.object({
   name: z.string().min(1, { message: 'Name is required' }),
@@ -11,7 +13,7 @@ const createUserZodSchema = z.object({
   profileImage: z.string().url().optional(),
   address: z.string().optional(),
   postCode: z.string().optional(),
-  gender: z.enum(['male', 'female', 'other']).optional(),
+  gender: z.enum(['male', 'female', 'both']).optional(),
   dateOfBirth: z
     .string()
     .refine(val => !isNaN(Date.parse(val)), {
