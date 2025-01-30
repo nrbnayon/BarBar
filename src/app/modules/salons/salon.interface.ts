@@ -18,7 +18,7 @@ export type ISalon = {
   gender: 'male' | 'female' | 'both';
   businessHours: BusinessHours[];
   status: 'active' | 'inactive' | 'pending' | 'rejected';
-  hostId: Types.ObjectId;
+  host: Types.ObjectId;
   category: Types.ObjectId;
   createdAt?: Date;
   updatedAt?: Date;

@@ -145,13 +145,13 @@ const getAllUsers = async (query: Record<string, unknown>) => {
 
   // Meta information for pagination
   return {
-    result: formattedUsers,
     meta: {
       total,
       limit: pageSize,
       totalPages: Math.ceil(total / pageSize),
       currentPage,
     },
+    result: formattedUsers,
   };
 };
 

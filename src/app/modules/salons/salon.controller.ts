@@ -30,8 +30,7 @@ const getAllSalons = catchAsync(async (req: Request, res: Response) => {
     success: true,
     statusCode: StatusCodes.OK,
     message: 'Salons retrieved successfully',
-    // meta: result.meta,
-    data: result.data,
+    data: result,
   });
 });
 

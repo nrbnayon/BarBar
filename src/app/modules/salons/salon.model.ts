@@ -67,7 +67,7 @@ const salonSchema = new Schema<ISalon, SalonModel>(
       enum: ['active', 'inactive', 'pending', 'rejected'],
       default: 'pending',
     },
-    hostId: {
+    host: {
       type: Schema.Types.ObjectId,
       ref: 'User',
       required: true,

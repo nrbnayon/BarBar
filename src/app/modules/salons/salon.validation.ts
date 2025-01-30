@@ -23,7 +23,7 @@ const createSalonZodSchema = z.object({
   passportNum: z.string().min(1, { message: 'Passport number is required' }),
   address: z.string().min(1, { message: 'Address is required' }),
   phone: z.string().min(1, { message: 'Phone number is required' }),
-  hostId: z.string().min(15, { message: 'hostId / Vendor id  is required' }),
+  host: z.string().min(15, { message: 'hostId is required' }),
   image: z.string().optional(),
   category: z.string().optional(),
   bannerImage: z.string().optional(),

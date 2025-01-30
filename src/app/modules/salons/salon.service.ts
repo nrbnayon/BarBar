@@ -5,6 +5,7 @@ import ApiError from '../../../errors/ApiError';
 import { ISalon } from './salon.interface';
 import { Salon } from './salon.model';
 import { JwtPayload } from 'jsonwebtoken';
+import { Category } from '../category/category.model';
 
 const createSalonInDb = async (payload: ISalon): Promise<ISalon> => {
   console.log('Creating salon with payload:', payload);
@@ -69,7 +70,7 @@ const createSalonInDb = async (payload: ISalon): Promise<ISalon> => {
 //     {
 //       $lookup: {
 //         from: 'users',
-//         localField: 'hostId',
+//         localField: 'host',
 //         foreignField: '_id',
 //         as: 'host',
 //       },
@@ -133,11 +134,22 @@ const getAllSalons = async (query: Record<string, unknown>) => {
   const conditions: any[] = [];
 
   if (searchTerm) {
+    // First, find matching category IDs
+    const matchingCategories = await Category.find({
+      name: { $regex: searchTerm.toString(), $options: 'i' },
+      status: 'active',
+    }).distinct('_id');
     conditions.push({
-      $or: [
-        { name: { $regex: searchTerm, $options: 'i' } },
-        { address: { $regex: searchTerm, $options: 'i' } },
-        { phone: { $regex: searchTerm, $options: 'i' } },
+      $and: [
+        { status: 'active' },
+        {
+          $or: [
+            { name: { $regex: searchTerm.toString(), $options: 'i' } },
+            { address: { $regex: searchTerm.toString(), $options: 'i' } },
+            { phone: { $regex: searchTerm.toString(), $options: 'i' } },
+            { category: { $in: matchingCategories } },
+          ],
+        },
       ],
     });
   }
@@ -154,22 +166,19 @@ const getAllSalons = async (query: Record<string, unknown>) => {
 
   const whereConditions = conditions.length ? { $and: conditions } : {};
 
-  // Pagination setup
   const currentPage = Number(page);
   const pageSize = Number(limit);
   const skip = (currentPage - 1) * pageSize;
 
-  // Sorting setup
   const sortOrder = order === 'desc' ? -1 : 1;
   const sortCondition: { [key: string]: SortOrder } = {
     [sortBy as string]: sortOrder,
   };
 
-  // Query the database with population
   const [salons, total] = await Promise.all([
     Salon.find(whereConditions)
       .populate({
-        path: 'hostId',
+        path: 'host',
         model: 'User',
         select: '-password',
       })
@@ -200,7 +209,7 @@ const getSalonById = async (id: string): Promise<ISalon | null> => {
     {
       $lookup: {
         from: 'users',
-        localField: 'hostId',
+        localField: 'host',
         foreignField: '_id',
         as: 'host',
       },
@@ -257,7 +266,7 @@ const updateSalon = async (
     {
       new: true,
     }
-  ).populate(['hostId', 'category']);
+  ).populate(['host', 'category']);
 
   console.log('Salon updated:', result ? 'Yes' : 'No');
   return result;

@@ -14,11 +14,10 @@ router.post(
   auth(USER_ROLES.HOST, USER_ROLES.ADMIN),
   (req: Request, res: Response, next: NextFunction) => {
     try {
-      // Extract the image path if an image was uploaded
       const user = req.user;
       const salonData = {
         ...req.body,
-        hostId: user.id,
+        host: user.id,
       };
       if (req.files && 'image' in req.files && req.files.image[0]) {
         salonData.image = `/images/${req.files.image[0].filename}`;
