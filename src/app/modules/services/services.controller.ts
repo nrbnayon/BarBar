@@ -45,8 +45,23 @@ const createService = catchAsync(
 );
 
 const getAllServices = catchAsync(async (req: Request, res: Response) => {
+  console.log('Getting all services with query:', req.query);
+  const result = await ServiceService.getAllServices(req.query);
+
+  sendResponse(res, {
+    success: true,
+    statusCode: StatusCodes.OK,
+    message: 'Services retrieved successfully',
+    data: result,
+  });
+});
+
+const getSalonAllServices = catchAsync(async (req: Request, res: Response) => {
   const { salonId } = req.params;
-  const result = await ServiceService.getAllServices(salonId, req.query);
+  const result = await ServiceService.getSalonAllServicesFromDB(
+    salonId,
+    req.query
+  );
 
   sendResponse(res, {
     success: true,
@@ -92,6 +107,7 @@ const deleteService = catchAsync(async (req: Request, res: Response) => {
 export const ServiceController = {
   createService,
   getAllServices,
+  getSalonAllServices,
   getServiceById,
   updateService,
   deleteService,

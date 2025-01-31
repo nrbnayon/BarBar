@@ -17,9 +17,14 @@ router.post(
 );
 
 router.get(
-  '/salon/:salonId',
+  '/all',
   auth(USER_ROLES.ADMIN, USER_ROLES.HOST, USER_ROLES.USER),
   ServiceController.getAllServices
+);
+router.get(
+  '/salon/:salonId',
+  auth(USER_ROLES.ADMIN, USER_ROLES.HOST, USER_ROLES.USER),
+  ServiceController.getSalonAllServices
 );
 
 router.get(
