@@ -9,7 +9,7 @@ const scheduleSchema = new Schema<ISchedule, ScheduleModel>(
       ref: 'Salon',
       required: true,
     },
-    userId: {
+    userId: { //Salon Owner
       type: Schema.Types.ObjectId,
       ref: 'User',
       required: true,
