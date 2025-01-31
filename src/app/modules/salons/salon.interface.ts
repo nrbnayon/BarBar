@@ -7,11 +7,18 @@ export type Location = {
   latitude: number;
   longitude: number;
 };
+
 export type BusinessHours = {
   day: string;
   startTime: string;
   endTime: string;
   isOff: boolean;
+};
+
+export type StatusUpdateHistory = {
+  status: 'active' | 'inactive' | 'pending' | 'rejected';
+  updatedAt: Date;
+  remarks?: string;
 };
 
 export type ISalon = {
@@ -26,7 +33,8 @@ export type ISalon = {
   status: 'active' | 'inactive' | 'pending' | 'rejected';
   host: Types.ObjectId;
   category: Types.ObjectId;
-  remarks: string,
+  remarks: string;
+  statusUpdateHistory?: StatusUpdateHistory[];
   createdAt?: Date;
   updatedAt?: Date;
 };

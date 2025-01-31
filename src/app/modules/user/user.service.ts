@@ -24,6 +24,7 @@ const createUserFromDb = async (payload: IUser) => {
       throw new ApiError(
         StatusCodes.BAD_REQUEST,
         'OOPS! Registration failed! Please try again'
+        
       );
     }
 
@@ -65,7 +66,7 @@ const createUserFromDb = async (payload: IUser) => {
   } catch (error) {
     throw new ApiError(
       StatusCodes.INTERNAL_SERVER_ERROR,
-      'OOPS! Registration failed! Please try again'
+      'OOPS! Email already exists! Please try with different email'
     );
   }
 };

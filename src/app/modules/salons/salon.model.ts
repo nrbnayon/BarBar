@@ -1,6 +1,6 @@
 // src/app/modules/salons/salon.model.ts
 import { Schema, model } from 'mongoose';
-import { BusinessHours, ISalon, SalonModel } from './salon.interface';
+import { BusinessHours, ISalon, SalonModel, StatusUpdateHistory } from './salon.interface';
 import { StatusCodes } from 'http-status-codes';
 import ApiError from '../../../errors/ApiError';
 
@@ -32,6 +32,21 @@ const businessHoursSchema = new Schema<BusinessHours>({
   isOff: {
     type: Boolean,
     default: false,
+  },
+});
+
+const statusUpdateHistorySchema = new Schema<StatusUpdateHistory>({
+  status: {
+    type: String,
+    enum: ['active', 'inactive', 'pending', 'rejected'],
+    required: true,
+  },
+  updatedAt: {
+    type: Date,
+    required: true,
+  },
+  remarks: {
+    type: String,
   },
 });
 
@@ -72,9 +87,9 @@ const salonSchema = new Schema<ISalon, SalonModel>(
     },
     remarks: {
       type: String,
-      default: 'Initial submission'
+      default: 'Initial submission',
     },
-    
+    statusUpdateHistory: [statusUpdateHistorySchema],
     host: {
       type: Schema.Types.ObjectId,
       ref: 'User',

@@ -53,7 +53,13 @@ const updateSalonZodSchema = z.object({
   remarks: z.string().optional(),
 });
 
+const updateSalonStatusZodSchema = z.object({
+  status: z.enum(['active', 'inactive', 'pending', 'rejected']),
+  remarks: z.string().optional(),
+});
+
 export const SalonValidation = {
   createSalonZodSchema,
   updateSalonZodSchema,
+  updateSalonStatusZodSchema,
 };

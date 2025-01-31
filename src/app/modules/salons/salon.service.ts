@@ -61,7 +61,12 @@ const getAllSalons = async (query: Record<string, unknown>) => {
         {
           $or: [
             { name: { $regex: sanitizedSearchTerm, $options: 'i' } },
-            { address: { $regex: sanitizedSearchTerm, $options: 'i' } },
+            {
+              'address.locationName': {
+                $regex: sanitizedSearchTerm,
+                $options: 'i',
+              },
+            },
             { phone: { $regex: sanitizedSearchTerm, $options: 'i' } },
             { category: { $in: matchingCategories } },
           ],
@@ -212,14 +217,15 @@ const updateSalonStatus = async (
     salonId,
     {
       status,
-      statusUpdateHistory: [
-        ...(salon.statusUpdateHistory || []),
-        {
-          status,
-          updatedAt: new Date(),
-          remarks: remarks || '',
-        },
-      ],
+      remarks: remarks || '',
+      // statusUpdateHistory: [
+      //   ...(salon.statusUpdateHistory || []),
+      //   {
+      //     status,
+      //     updatedAt: new Date(),
+      //     remarks: remarks || '',
+      //   },
+      // ],
     },
     { new: true }
   ).populate(['host', 'category']);

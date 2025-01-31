@@ -84,14 +84,14 @@ router.get(
 );
 
 router.get(
-  '/pending',
+  '/admin/pending',
   auth(USER_ROLES.ADMIN),
   SalonController.getPendingSalons
 );
 
 router.get(
   '/status/:status',
-  auth(USER_ROLES.ADMIN),
+  auth(USER_ROLES.ADMIN, USER_ROLES.HOST),
   SalonController.getSalonsByStatus
 );
 

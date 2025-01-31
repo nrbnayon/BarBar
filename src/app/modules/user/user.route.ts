@@ -17,6 +17,7 @@ router.post(
         ...req.body,
       };
 
+
       if (req.files) {
         const imagePath = getFilePath(req.files, 'image');
         if (imagePath) {
