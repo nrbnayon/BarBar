@@ -197,6 +197,115 @@ const deleteSalon = async (id: string): Promise<ISalon | null> => {
   return result;
 };
 
+const updateSalonStatus = async (
+  salonId: string,
+  status: 'active' | 'inactive' | 'pending' | 'rejected',
+  remarks?: string
+): Promise<ISalon | null> => {
+  const salon = await Salon.findById(salonId);
+
+  if (!salon) {
+    throw new ApiError(StatusCodes.NOT_FOUND, 'Salon not found');
+  }
+
+  const result = await Salon.findByIdAndUpdate(
+    salonId,
+    {
+      status,
+      statusUpdateHistory: [
+        ...(salon.statusUpdateHistory || []),
+        {
+          status,
+          updatedAt: new Date(),
+          remarks: remarks || '',
+        },
+      ],
+    },
+    { new: true }
+  ).populate(['host', 'category']);
+
+  return result;
+};
+
+const getPendingSalons = async (query: Record<string, unknown>) => {
+  const { page = 1, limit = 10, sortBy = 'createdAt', order = 'desc' } = query;
+
+  const currentPage = Number(page);
+  const pageSize = Number(limit);
+  const skip = (currentPage - 1) * pageSize;
+
+  const sortOrder = order === 'desc' ? -1 : 1;
+  const sortCondition: { [key: string]: SortOrder } = {
+    [sortBy as string]: sortOrder,
+  };
+
+  const [salons, total] = await Promise.all([
+    Salon.find({ status: 'pending' })
+      .populate({
+        path: 'host',
+        model: 'User',
+        select: '-password',
+      })
+      .populate('category')
+      .sort(sortCondition)
+      .skip(skip)
+      .limit(pageSize)
+      .lean(),
+    Salon.countDocuments({ status: 'pending' }),
+  ]);
+
+  return {
+    meta: {
+      total,
+      limit: pageSize,
+      totalPages: Math.ceil(total / pageSize),
+      currentPage,
+    },
+    data: salons,
+  };
+};
+
+const getSalonsByStatus = async (
+  status: 'active' | 'inactive' | 'pending' | 'rejected',
+  query: Record<string, unknown>
+) => {
+  const { page = 1, limit = 10, sortBy = 'createdAt', order = 'desc' } = query;
+
+  const currentPage = Number(page);
+  const pageSize = Number(limit);
+  const skip = (currentPage - 1) * pageSize;
+
+  const sortOrder = order === 'desc' ? -1 : 1;
+  const sortCondition: { [key: string]: SortOrder } = {
+    [sortBy as string]: sortOrder,
+  };
+
+  const [salons, total] = await Promise.all([
+    Salon.find({ status })
+      .populate({
+        path: 'host',
+        model: 'User',
+        select: '-password',
+      })
+      .populate('category')
+      .sort(sortCondition)
+      .skip(skip)
+      .limit(pageSize)
+      .lean(),
+    Salon.countDocuments({ status }),
+  ]);
+
+  return {
+    meta: {
+      total,
+      limit: pageSize,
+      totalPages: Math.ceil(total / pageSize),
+      currentPage,
+    },
+    data: salons,
+  };
+};
+
 export const SalonService = {
   createSalonInDb,
   getAllSalons,
@@ -204,4 +313,7 @@ export const SalonService = {
   getSalonsByCategory,
   updateSalon,
   deleteSalon,
+  updateSalonStatus,
+  getPendingSalons,
+  getSalonsByStatus,
 };

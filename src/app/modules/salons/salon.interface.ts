@@ -1,5 +1,6 @@
 // src/app/modules/salons/salon.interface.ts
 import { Model, Types } from 'mongoose';
+import { string } from 'zod';
 
 export type Location = {
   locationName: string;
@@ -25,6 +26,7 @@ export type ISalon = {
   status: 'active' | 'inactive' | 'pending' | 'rejected';
   host: Types.ObjectId;
   category: Types.ObjectId;
+  remarks: string,
   createdAt?: Date;
   updatedAt?: Date;
 };

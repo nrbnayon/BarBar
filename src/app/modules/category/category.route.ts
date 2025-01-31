@@ -26,7 +26,6 @@ router.post(
           categoryData.image = imagePath;
         }
       }
-      console.log('New creating category data: ', categoryData);
       const validatedData =
         CategoryValidation.createCategorySchema.parse(categoryData);
       req.body = validatedData;

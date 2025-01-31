@@ -35,7 +35,10 @@ const createSalonZodSchema = z.object({
   bannerImage: z.string().optional(),
   gender: z.enum(['male', 'female', 'both']),
   businessHours: z.array(businessHoursSchema).optional(),
-  status: z.enum(['active', 'inactive', 'pending', 'rejected']).default("pending"),
+  status: z
+    .enum(['active', 'inactive', 'pending', 'rejected'])
+    .default('pending'),
+  remarks: z.string().default('Initial submission'),
 });
 
 const updateSalonZodSchema = z.object({
@@ -47,6 +50,7 @@ const updateSalonZodSchema = z.object({
   gender: z.enum(['male', 'female', 'both']).optional(),
   businessHours: z.array(businessHoursSchema).optional(),
   status: z.enum(['active', 'inactive', 'pending', 'rejected']).optional(),
+  remarks: z.string().optional(),
 });
 
 export const SalonValidation = {

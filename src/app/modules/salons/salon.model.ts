@@ -70,6 +70,11 @@ const salonSchema = new Schema<ISalon, SalonModel>(
       enum: ['active', 'inactive', 'pending', 'rejected'],
       default: 'pending',
     },
+    remarks: {
+      type: String,
+      default: 'Initial submission'
+    },
+    
     host: {
       type: Schema.Types.ObjectId,
       ref: 'User',

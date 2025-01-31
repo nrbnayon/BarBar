@@ -22,6 +22,7 @@ import { MessageRoutes } from '../app/modules/messages/messages.route';
 import { ChatRoutes } from '../app/modules/chat/chat.route';
 import { UserLogRoutes } from '../app/modules/userLog/userLog.route';
 import { SalonRoutes } from '../app/modules/salons/salon.route';
+import { ServiceRoutes } from '../app/modules/services/services.route';
 
 const router = express.Router();
 
@@ -33,6 +34,7 @@ const apiRoutes = [
   { path: '/category', route: CategoryRoutes },
   { path: '/banner', route: BannerRoutes },
   { path: '/salon', route: SalonRoutes },
+  { path: '/service', route: ServiceRoutes },
   { path: '/product', route: ProductRoutes },
   { path: '/payment', route: PaymentRoutes },
   { path: '/contact', route: ContactRoutes },

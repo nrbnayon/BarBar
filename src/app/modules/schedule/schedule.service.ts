@@ -1,6 +1,6 @@
 // src\app\modules\schedule\schedule.service.ts
 import { StatusCodes } from 'http-status-codes';
-import mongoose from 'mongoose';
+import mongoose, { PipelineStage } from 'mongoose';
 import ApiError from '../../../errors/ApiError';
 import { ISchedule } from './schedule.interface';
 import { Schedule } from './schedule.model';
@@ -51,7 +51,7 @@ const getAllSchedules = async (query: Record<string, unknown>) => {
     ...filterData
   } = query;
 
-  const aggregationPipeline = [];
+  const aggregationPipeline: PipelineStage[] = [];
 
   // Match stage for filters
   if (Object.keys(filterData).length) {
@@ -67,7 +67,7 @@ const getAllSchedules = async (query: Record<string, unknown>) => {
         foreignField: '_id',
         as: 'salon',
       },
-    },
+    } as PipelineStage,
     {
       $lookup: {
         from: 'users',
@@ -75,7 +75,7 @@ const getAllSchedules = async (query: Record<string, unknown>) => {
         foreignField: '_id',
         as: 'user',
       },
-    }
+    } as PipelineStage
   );
 
   // Unwind stages
@@ -85,13 +85,13 @@ const getAllSchedules = async (query: Record<string, unknown>) => {
         path: '$salon',
         preserveNullAndEmptyArrays: true,
       },
-    },
+    } as PipelineStage,
     {
       $unwind: {
         path: '$user',
         preserveNullAndEmptyArrays: true,
       },
-    }
+    } as PipelineStage
   );
 
   // Project stage
@@ -107,16 +107,20 @@ const getAllSchedules = async (query: Record<string, unknown>) => {
       'user.email': 1,
       createdAt: 1,
     },
-  });
+  } as PipelineStage);
 
-  // Sort stage
-  aggregationPipeline.push({
+  // Sort stage - properly typed
+  const sortStage: PipelineStage.Sort = {
     $sort: { [sortBy as string]: sortOrder === 'desc' ? -1 : 1 },
-  });
+  };
+  aggregationPipeline.push(sortStage);
 
-  // Pagination
+  // Pagination stages
   const skip = (Number(page) - 1) * Number(limit);
-  aggregationPipeline.push({ $skip: skip }, { $limit: Number(limit) });
+  aggregationPipeline.push(
+    { $skip: skip } as PipelineStage,
+    { $limit: Number(limit) } as PipelineStage
+  );
 
   const [result, total] = await Promise.all([
     Schedule.aggregate(aggregationPipeline),

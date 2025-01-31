@@ -16,7 +16,6 @@ router.post(
       const userData = {
         ...req.body,
       };
-      console.log('New creating user data: ', userData);
 
       if (req.files) {
         const imagePath = getFilePath(req.files, 'image');
@@ -25,7 +24,6 @@ router.post(
         }
       }
 
-      console.log('New creating user data: ', userData);
       // Validate the combined data
       const validatedData = UserValidation.createUserZodSchema.parse(userData);
       req.body = validatedData;

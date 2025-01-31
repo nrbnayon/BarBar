@@ -96,6 +96,43 @@ const deleteSalon = catchAsync(async (req: Request, res: Response) => {
   });
 });
 
+const updateSalonStatus = catchAsync(async (req: Request, res: Response) => {
+  const { id } = req.params;
+  const { status, remarks } = req.body;
+
+  const result = await SalonService.updateSalonStatus(id, status, remarks);
+
+  sendResponse(res, {
+    success: true,
+    statusCode: StatusCodes.OK,
+    message: `Salon ${status} successfully`,
+    data: result,
+  });
+});
+
+const getPendingSalons = catchAsync(async (req: Request, res: Response) => {
+  const result = await SalonService.getPendingSalons(req.query);
+
+  sendResponse(res, {
+    success: true,
+    statusCode: StatusCodes.OK,
+    message: 'Pending salons retrieved successfully',
+    data: result,
+  });
+});
+
+const getSalonsByStatus = catchAsync(async (req: Request, res: Response) => {
+  const { status } = req.params;
+  const result = await SalonService.getSalonsByStatus(status as any, req.query);
+
+  sendResponse(res, {
+    success: true,
+    statusCode: StatusCodes.OK,
+    message: `${status} salons retrieved successfully`,
+    data: result,
+  });
+});
+
 export const SalonController = {
   createSalon,
   getAllSalons,
@@ -103,4 +140,7 @@ export const SalonController = {
   getSalonsByCategory,
   updateSalon,
   deleteSalon,
+  updateSalonStatus,
+  getPendingSalons,
+  getSalonsByStatus,
 };

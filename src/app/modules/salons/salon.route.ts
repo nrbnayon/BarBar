@@ -6,6 +6,7 @@ import fileUploadHandler from '../../middlewares/fileUploadHandler';
 import { SalonController } from './salon.controller';
 import { SalonValidation } from './salon.validation';
 import getFilePath from '../../../shared/getFilePath';
+import validateRequest from '../../middlewares/validateRequest';
 const router = express.Router();
 
 router.post(
@@ -80,6 +81,25 @@ router.get(
   '/category/:categoryId',
   auth(USER_ROLES.ADMIN, USER_ROLES.USER, USER_ROLES.HOST),
   SalonController.getSalonsByCategory
+);
+
+router.get(
+  '/pending',
+  auth(USER_ROLES.ADMIN),
+  SalonController.getPendingSalons
+);
+
+router.get(
+  '/status/:status',
+  auth(USER_ROLES.ADMIN),
+  SalonController.getSalonsByStatus
+);
+
+router.patch(
+  '/status/:id',
+  auth(USER_ROLES.ADMIN),
+  validateRequest(SalonValidation.updateSalonZodSchema),
+  SalonController.updateSalonStatus
 );
 
 router.delete('/:id', auth(USER_ROLES.ADMIN), SalonController.deleteSalon);
