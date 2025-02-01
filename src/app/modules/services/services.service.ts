@@ -8,11 +8,54 @@ import { Salon } from '../salons/salon.model';
 import { Types } from 'mongoose';
 
 const createService = async (payload: IService): Promise<IService> => {
-  const result = await Service.create(payload);
-  if (!result) {
-    throw new ApiError(StatusCodes.BAD_REQUEST, 'Service not created!');
+  try {
+    const salon = await Salon.findOne({
+      _id: payload.salon,
+      status: 'active',
+    });
+
+    if (!salon) {
+      throw new ApiError(StatusCodes.NOT_FOUND, 'Salon not found or inactive');
+    }
+
+    const serviceData = {
+      ...payload,
+      status: 'active',
+    };
+
+    const result = await Service.create(serviceData);
+
+    if (!result) {
+      throw new ApiError(StatusCodes.BAD_REQUEST, 'Service not created!');
+    }
+
+    const populatedResult = await Service.findById(result._id)
+      .populate({
+        path: 'salon',
+        select: 'name address phone status',
+      })
+      .populate({
+        path: 'category',
+        select: 'name description status',
+      });
+
+    if (!populatedResult) {
+      throw new ApiError(
+        StatusCodes.INTERNAL_SERVER_ERROR,
+        'Error retrieving created service'
+      );
+    }
+
+    return populatedResult.toObject() as IService;
+  } catch (error) {
+    if (error instanceof ApiError) {
+      throw error;
+    }
+    throw new ApiError(
+      StatusCodes.INTERNAL_SERVER_ERROR,
+      'Error creating service'
+    );
   }
-  return result;
 };
 
 const getAllServices = async (filters: Record<string, unknown>) => {
@@ -152,12 +195,14 @@ const getSalonAllServicesFromDB = async (
   const result = await Service.find({ $and: conditions })
     .populate('category')
     .lean();
-
   return result;
 };
 
 const getServiceById = async (id: string): Promise<IService | null> => {
-  const result = await Service.findById(id).populate('category');
+  const result = await Service.findById(id)
+    .populate('category')
+    .populate('salon')
+    .lean();
   return result;
 };
 

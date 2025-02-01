@@ -47,14 +47,13 @@ router.patch(
   async (req: Request, res: Response, next: NextFunction) => {
     try {
       let updateSalonData = { ...req.body };
-      // Handle image if present
       if (req.files) {
         const imagePath = getFilePath(req.files, 'image');
         if (imagePath) {
           updateSalonData.image = imagePath;
         }
       }
-
+      
       const validatedData =
         SalonValidation.updateSalonZodSchema.parse(updateSalonData);
       req.body = validatedData;

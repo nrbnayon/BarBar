@@ -12,7 +12,6 @@ const createService = catchAsync(
     try {
       let serviceData = { ...req.body };
 
-      // If there are files in the request, process the 'image' file
       if (req.files) {
         const imagePath = getFilePath(req.files, 'image');
         if (imagePath) {
@@ -20,18 +19,11 @@ const createService = catchAsync(
         }
       }
 
-      console.log('Creating new service data: ', serviceData);
-
-      // Validate service data using Zod schema
       const validatedData =
         ServiceValidation.createServiceZodSchema.parse(serviceData);
       req.body = validatedData;
 
-      // Call the service layer to create the service
       const result = await ServiceService.createService(req.body);
-
-      console.log('Service created successfully:', result);
-
       sendResponse(res, {
         success: true,
         statusCode: StatusCodes.CREATED,
@@ -82,16 +74,34 @@ const getServiceById = catchAsync(async (req: Request, res: Response) => {
   });
 });
 
-const updateService = catchAsync(async (req: Request, res: Response) => {
-  const result = await ServiceService.updateService(req.params.id, req.body);
+const updateService = catchAsync(
+  async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      let serviceUpdateData = { ...req.body };
+      const serviceId = req.params.id;
+      if (req.files) {
+        const imagePath = getFilePath(req.files, 'image');
+        if (imagePath) {
+          serviceUpdateData.image = imagePath;
+        }
+      }
 
-  sendResponse(res, {
-    success: true,
-    statusCode: StatusCodes.OK,
-    message: 'Service updated successfully',
-    data: result,
-  });
-});
+      const validatedData =
+        ServiceValidation.updateServiceZodSchema.parse(serviceUpdateData);
+      req.body = validatedData;
+
+      const result = await ServiceService.updateService(serviceId, req.body);
+      sendResponse(res, {
+        success: true,
+        statusCode: StatusCodes.OK,
+        message: 'Service updated successfully',
+        data: result,
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
+);
 
 const deleteService = catchAsync(async (req: Request, res: Response) => {
   const result = await ServiceService.deleteService(req.params.id);

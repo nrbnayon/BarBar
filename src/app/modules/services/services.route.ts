@@ -2,9 +2,7 @@
 import express from 'express';
 import { USER_ROLES } from '../../../enums/user';
 import auth from '../../middlewares/auth';
-import validateRequest from '../../middlewares/validateRequest';
 import { ServiceController } from './services.controller';
-import { ServiceValidation } from './services.validation';
 import fileUploadHandler from './../../middlewares/fileUploadHandler';
 
 const router = express.Router();
@@ -34,14 +32,14 @@ router.get(
 );
 
 router.patch(
-  '/:id',
+  '/update/:id',
+  fileUploadHandler(),
   auth(USER_ROLES.HOST),
-  validateRequest(ServiceValidation.updateServiceZodSchema),
   ServiceController.updateService
 );
 
 router.delete(
-  '/:id',
+  '/delete/:id',
   auth(USER_ROLES.HOST, USER_ROLES.ADMIN),
   ServiceController.deleteService
 );
