@@ -133,6 +133,20 @@ const getSalonsByStatus = catchAsync(async (req: Request, res: Response) => {
   });
 });
 
+const getGenderBasedSalons = catchAsync(async (req: Request, res: Response) => {
+  const userId = req.user.id;
+
+  console.log('User ID: ', userId, 'Query: ', req.query);
+  const result = await SalonService.getGenderBasedSalons(userId, req.query);
+
+  sendResponse(res, {
+    success: true,
+    statusCode: StatusCodes.OK,
+    message: 'Gender-based salons retrieved successfully',
+    data: result,
+  });
+});
+
 export const SalonController = {
   createSalon,
   getAllSalons,
@@ -143,4 +157,5 @@ export const SalonController = {
   updateSalonStatus,
   getPendingSalons,
   getSalonsByStatus,
+  getGenderBasedSalons,
 };

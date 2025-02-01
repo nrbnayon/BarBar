@@ -52,7 +52,15 @@ const createLoginLog = async (req: Request, userId: string, email: string) => {
       return existingLog;
     }
 
-    let locationData = { city: 'Unknown', country: 'Unknown', lat: 0, lon: 0 };
+    let locationData = {
+      city: 'Unknown',
+      country: 'Unknown',
+      zip: 'Unknown',
+      region: 'Unknown',
+      regionName: 'Unknown',
+      lat: 0,
+      lon: 0,
+    };
     if (ip !== 'localhost' && ip !== '127.0.0.1') {
       try {
         const geoResponse = await axios.get(`http://ip-api.com/json/${ip}`);
@@ -71,6 +79,9 @@ const createLoginLog = async (req: Request, userId: string, email: string) => {
       }`.trim(),
       location: {
         ip,
+        zip: locationData.zip,
+        region: locationData.region,
+        regionName: locationData.regionName,
         city: locationData.city,
         country: locationData.country,
         latitude: locationData.lat,

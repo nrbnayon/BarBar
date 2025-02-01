@@ -1,5 +1,8 @@
 export interface ILocation {
   ip: string;
+  zip?: string;
+  region?: string;
+  regionName?: string;
   city?: string;
   country?: string;
   latitude?: number;

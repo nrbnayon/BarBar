@@ -53,7 +53,7 @@ router.patch(
           updateSalonData.image = imagePath;
         }
       }
-      
+
       const validatedData =
         SalonValidation.updateSalonZodSchema.parse(updateSalonData);
       req.body = validatedData;
@@ -65,7 +65,7 @@ router.patch(
 );
 
 router.get(
-  '/',
+  '/all',
   auth(USER_ROLES.ADMIN, USER_ROLES.USER, USER_ROLES.HOST),
   SalonController.getAllSalons
 );
@@ -99,6 +99,12 @@ router.patch(
   auth(USER_ROLES.ADMIN),
   validateRequest(SalonValidation.updateSalonZodSchema),
   SalonController.updateSalonStatus
+);
+
+router.get(
+  '/user/gender',
+  auth(USER_ROLES.USER),
+  SalonController.getGenderBasedSalons
 );
 
 router.delete('/:id', auth(USER_ROLES.ADMIN), SalonController.deleteSalon);

@@ -5,6 +5,7 @@ import ApiError from '../../../errors/ApiError';
 import { ISalon } from './salon.interface';
 import { Salon } from './salon.model';
 import { Category } from '../category/category.model';
+import { User } from '../user/user.model';
 
 const createSalonInDb = async (payload: ISalon): Promise<ISalon> => {
   console.log('Creating salon with payload:', payload);
@@ -122,8 +123,6 @@ const getAllSalons = async (query: Record<string, unknown>) => {
 };
 
 const getSalonById = async (id: string): Promise<ISalon | null> => {
-  console.log('Getting salon by ID:', id);
-
   const result = await Salon.aggregate([
     { $match: { _id: new mongoose.Types.ObjectId(id) } },
     {
@@ -312,6 +311,108 @@ const getSalonsByStatus = async (
   };
 };
 
+const getGenderBasedSalons = async (
+  userId: string,
+  query: Record<string, unknown>
+) => {
+  const {
+    searchTerm,
+    page = 1,
+    limit = 10,
+    sortBy = 'createdAt',
+    order = 'desc',
+  } = query;
+
+  // Get user's gender from the User model
+  const user = await User.findById(userId).select('gender');
+
+  const currentPage = Number(page);
+  const pageSize = Number(limit);
+  const skip = (currentPage - 1) * pageSize;
+  const sortOrder = order === 'desc' ? -1 : 1;
+  const sortCondition: { [key: string]: SortOrder } = {
+    [sortBy as string]: sortOrder,
+  };
+
+  // Initialize base conditions array with active status
+  const conditions: any[] = [{ status: 'active' }];
+
+  // Add search conditions if searchTerm exists
+  if (searchTerm) {
+    const sanitizedSearchTerm = searchTerm
+      .toString()
+      .replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+
+    const matchingCategories = await Category.find({
+      name: { $regex: searchTerm.toString(), $options: 'i' },
+      status: 'active',
+    }).distinct('_id');
+
+    conditions.push({
+      $or: [
+        { name: { $regex: sanitizedSearchTerm, $options: 'i' } },
+        {
+          'address.locationName': {
+            $regex: sanitizedSearchTerm,
+            $options: 'i',
+          },
+        },
+        { phone: { $regex: sanitizedSearchTerm, $options: 'i' } },
+        { category: { $in: matchingCategories } },
+      ],
+    });
+  }
+
+  // Add gender filter if applicable
+  if (user?.gender) {
+    const specificGenderFilter =
+      user.gender === 'both'
+        ? { gender: { $in: ['both', 'male', 'female'] } }
+        : { gender: { $in: ['both', user.gender] } };
+
+    const matchingSalons = await Salon.countDocuments({
+      $and: [...conditions, specificGenderFilter],
+    });
+
+    if (matchingSalons > 0) {
+      conditions.push(specificGenderFilter);
+    }
+  }
+
+  // Combine all conditions with $and
+  const whereConditions =
+    conditions.length > 1 ? { $and: conditions } : conditions[0];
+
+  const [salons, total] = await Promise.all([
+    Salon.find(whereConditions)
+      .populate({
+        path: 'host',
+        model: 'User',
+        select: '-password',
+      })
+      .populate('category')
+      .sort(sortCondition)
+      .skip(skip)
+      .limit(pageSize)
+      .lean(),
+    Salon.countDocuments(whereConditions),
+  ]);
+
+  const wasGenderFiltered = conditions.length > 1;
+
+  return {
+    meta: {
+      total,
+      limit: pageSize,
+      totalPages: Math.ceil(total / pageSize),
+      currentPage,
+      wasGenderFiltered,
+      userGender: user?.gender || 'not_specified',
+    },
+    data: salons,
+  };
+};
+
 export const SalonService = {
   createSalonInDb,
   getAllSalons,
@@ -322,4 +423,5 @@ export const SalonService = {
   updateSalonStatus,
   getPendingSalons,
   getSalonsByStatus,
+  getGenderBasedSalons,
 };
