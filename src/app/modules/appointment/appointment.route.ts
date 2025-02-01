@@ -36,7 +36,7 @@ router.get(
 router.patch(
   '/:id/status',
   auth(USER_ROLES.HOST),
-  validateRequest(AppointmentValidation.updateAppointmentZodSchema),
+  // validateRequest(AppointmentValidation.updateAppointmentZodSchema),
   AppointmentController.updateAppointmentStatus
 );
 
@@ -47,11 +47,11 @@ router.patch(
   AppointmentController.rescheduleAppointment
 );
 
-// router.post(
-//   '/:id/payment',
-//   auth(USER_ROLES.USER),
-//   validateRequest(AppointmentValidation.processPaymentZodSchema),
-//   AppointmentController.processPayment
-// );
+router.post(
+  '/:id/payment',
+  auth(USER_ROLES.USER),
+  validateRequest(AppointmentValidation.processPaymentZodSchema),
+  AppointmentController.processPayment
+);
 
 export const AppointmentRoutes = router;

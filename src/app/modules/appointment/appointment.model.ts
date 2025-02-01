@@ -5,6 +5,7 @@ import ApiError from '../../../errors/ApiError';
 import { StatusCodes } from 'http-status-codes';
 import { Service } from '../services/services.model';
 import { Salon } from '../salons/salon.model';
+import { timeUtils } from '../../../util/timeConverter';
 
 const paymentInfoSchema = new Schema({
   method: {
@@ -237,6 +238,8 @@ appointmentSchema.statics.isWithinCancellationWindow = function (
 };
 
 appointmentSchema.pre('save', async function (next) {
+  // If the appointment is new or the appointment date has been modified,
+  // set the cancellation deadline to 24 hours before the appointment date/time.
   if (this.isNew || this.isModified('appointmentDate')) {
     const apptDateTime = new Date(this.appointmentDate);
     this.cancellationDeadline = new Date(
@@ -244,21 +247,30 @@ appointmentSchema.pre('save', async function (next) {
     );
   }
 
+  // If this is a new appointment or if the startTime or appointmentDate have changed,
+  // check that the appointment time falls within the salon's business hours.
   if (
     this.isNew ||
     this.isModified('startTime') ||
     this.isModified('appointmentDate')
   ) {
     const salon = await this.model('Salon').findById(this.salon);
+    console.log('Get salon info:: ', salon);
+
     if (!salon) {
       throw new ApiError(StatusCodes.NOT_FOUND, 'Salon not found');
     }
+
+    // Get the day of the week for the appointment date (e.g., "Monday")
     const dayOfWeek = this.appointmentDate.toLocaleString('en-us', {
       weekday: 'long',
     });
+
+    // Find the business hours for that day (and ensure the salon is open)
     const businessHours = salon.businessHours.find(
       (hours: any) => hours.day === dayOfWeek && !hours.isOff
     );
+
     if (!businessHours) {
       throw new ApiError(
         StatusCodes.BAD_REQUEST,
@@ -266,22 +278,15 @@ appointmentSchema.pre('save', async function (next) {
       );
     }
 
-    const [openHour, openMinute] = businessHours.startTime.split(':');
-    const [closeHour, closeMinute] = businessHours.endTime.split(':');
-    const [appointmentHour, appointmentMinute] = this.startTime.split(':');
-
-    const appointmentDateTime = new Date(this.appointmentDate);
-    appointmentDateTime.setHours(
-      parseInt(appointmentHour, 10),
-      parseInt(appointmentMinute, 10),
-      0,
-      0
-    );
+    const openTimeStr = timeUtils.convertTo24Hour(businessHours.startTime);
+    const closeTimeStr = timeUtils.convertTo24Hour(businessHours.endTime);
 
     const openTime = new Date(this.appointmentDate);
+    const [openHour, openMinute] = openTimeStr.split(':');
     openTime.setHours(parseInt(openHour, 10), parseInt(openMinute, 10), 0, 0);
 
     const closeTime = new Date(this.appointmentDate);
+    const [closeHour, closeMinute] = closeTimeStr.split(':');
     closeTime.setHours(
       parseInt(closeHour, 10),
       parseInt(closeMinute, 10),
@@ -289,18 +294,34 @@ appointmentSchema.pre('save', async function (next) {
       0
     );
 
+    const appointmentDateTime = new Date(this.appointmentDate);
+    const [appointmentHour, appointmentMinute] = this.startTime.split(':');
+    appointmentDateTime.setHours(
+      parseInt(appointmentHour, 10),
+      parseInt(appointmentMinute, 10),
+      0,
+      0
+    );
+
+    console.log('Appointment DateTime:', appointmentDateTime);
+    console.log('Business hours (open):', openTime);
+    console.log('Business hours (close):', closeTime);
+
+    // Validate that the appointment time is within the business hours.
     if (appointmentDateTime < openTime || appointmentDateTime >= closeTime) {
       throw new ApiError(
         StatusCodes.BAD_REQUEST,
-        'Appointment time is outside business hours'
+        `Appointment time must be between ${businessHours.startTime} and ${businessHours.endTime}`
       );
     }
   }
 
+  // If the appointment status has changed, update the lastStatusUpdate field.
   if (this.isModified('status')) {
     this.lastStatusUpdate = new Date();
   }
 
+  // Handle payment status updates.
   if (this.isModified('payment.status')) {
     if (this.payment.status === 'paid') {
       this.status = 'confirmed';

@@ -39,7 +39,7 @@ const createAppointment = async (
 
   // Check for overlapping appointments
   const overlappingAppointments = await Appointment.find({
-    salon: payload.salon,
+    salon: service.salon, // Use salon from service
     appointmentDate: {
       $gte: new Date(appointmentDate.setHours(0, 0, 0, 0)),
       $lt: new Date(appointmentDate.setHours(23, 59, 59, 999)),
@@ -70,8 +70,8 @@ const createAppointment = async (
 
   // Check if time slot is available
   const isAvailable = await Appointment.isTimeSlotAvailable(
-    payload.salon?.toString() || '',
-    payload.service?.toString() || '',
+    service.salon.toString(),
+    service._id.toString(),
     appointmentDate,
     payload.startTime!
   );
@@ -83,16 +83,19 @@ const createAppointment = async (
     );
   }
 
-  // Create appointment
+  // Create appointment with data from service
   const result = await Appointment.create({
     ...payload,
     user: userId,
+    salon: service.salon, // Set salon from service
     endTime,
     duration: service.duration,
     price: service.price,
     status: 'pending',
     payment: {
       ...payload.payment,
+      amount: service.price, // Set amount from service price
+      currency: 'USD',
       status: 'pending',
     },
   });

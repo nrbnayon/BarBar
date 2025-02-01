@@ -1,15 +1,26 @@
 // src\app\modules\appointment\appointment.controller.ts
-import { Request, Response } from 'express';
+import { NextFunction, Request, Response } from 'express';
 import { StatusCodes } from 'http-status-codes';
 import catchAsync from '../../../shared/catchAsync';
 import sendResponse from '../../../shared/sendResponse';
 import { AppointmentService } from './appointment.service';
 
 const createAppointment = catchAsync(async (req: Request, res: Response) => {
-  console.log('Create appointment:: ', req.body);
+  console.log('Controller - Request body:', req.body);
+  
+  const appointmentData = {
+    service: req.body.service,
+    appointmentDate: req.body.appointmentDate,
+    startTime: req.body.startTime,
+    payment: req.body.payment,
+    notes: req.body.notes
+  };
+
+  console.log('Controller - Appointment data:', appointmentData);
+  
   const result = await AppointmentService.createAppointment(
     req.user.id,
-    req.body
+    appointmentData
   );
 
   sendResponse(res, {
@@ -61,7 +72,8 @@ const getSalonAppointments = catchAsync(async (req: Request, res: Response) => {
   sendResponse(res, {
     success: true,
     statusCode: StatusCodes.OK,
-    message: 'Salon appointments retrieved successfully',
+    message:
+      'Salon appointments retrieved successfully',
     data: result,
   });
 });

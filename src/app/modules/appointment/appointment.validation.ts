@@ -1,25 +1,20 @@
-// src\app\modules\appointment 
-// \appointment.validation.ts
+// src\app\modules\appointment\appointment.validation.ts
 import { z } from 'zod';
 
-const paymentInfoSchema = z.object({
-  method: z.enum(['cash', 'visa', 'mastercard', 'paypal']),
-  status: z.enum(['pending', 'paid', 'refunded', 'failed']),
-  amount: z.number().min(0),
-  currency: z.string().default('USD'),
-});
-
 const createAppointmentZodSchema = z.object({
-  service: z.string(),
-  salon: z.string(),
-  appointmentDate: z.string().refine(date => new Date(date) > new Date(), {
-    message: 'Appointment date must be in the future',
+  body: z.object({
+    service: z.string(),
+    appointmentDate: z.string().refine(date => new Date(date) > new Date(), {
+      message: 'Appointment date must be in the future',
+    }),
+    startTime: z.string().regex(/^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/, {
+      message: 'Invalid time format. Use 24-hour format (HH:MM)',
+    }),
+    payment: z.object({
+      method: z.enum(['cash', 'visa', 'mastercard', 'paypal']),
+    }),
+    notes: z.string().optional(),
   }),
-  startTime: z.string().regex(/^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/, {
-    message: 'Invalid time format. Use HH:MM format',
-  }),
-  payment: paymentInfoSchema,
-  notes: z.string().optional(),
 });
 
 const updateAppointmentZodSchema = z.object({
@@ -46,8 +41,6 @@ const rescheduleAppointmentZodSchema = z.object({
 const processPaymentZodSchema = z
   .object({
     method: z.enum(['cash', 'visa', 'mastercard', 'paypal']),
-    amount: z.number().min(0),
-    currency: z.string().default('USD'),
     cardNumber: z.string().optional(),
     cardHolderName: z.string().optional(),
     expiryDate: z.string().optional(),
