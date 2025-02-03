@@ -3,6 +3,12 @@
 import { Model } from 'mongoose';
 import { USER_ROLES } from '../../../enums/user';
 
+export type Location = {
+  locationName: string;
+  latitude: number;
+  longitude: number;
+};
+
 export type IUser = {
   role: USER_ROLES;
   name: string;
@@ -10,7 +16,7 @@ export type IUser = {
   phone: string;
   password: string;
   postCode: string;
-  address?: string;
+  address?: Location;
   country?: string;
   appId?: string;
   fcmToken?: string;

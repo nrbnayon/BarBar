@@ -7,6 +7,12 @@ import { USER_ROLES } from '../../../enums/user';
 import ApiError from '../../../errors/ApiError';
 import { IUser, UserModal } from './user.interface';
 
+const locationSchema = new Schema({
+  locationName: { type: String },
+  latitude: { type: Number },
+  longitude: { type: Number },
+});
+
 const userSchema = new Schema<IUser, UserModal>(
   {
     name: {
@@ -36,10 +42,7 @@ const userSchema = new Schema<IUser, UserModal>(
     postCode: {
       type: String,
     },
-    address: {
-      type: String,
-      default: '',
-    },
+    address: { type: locationSchema },
     country: {
       type: String,
       default: '',
@@ -69,9 +72,7 @@ const userSchema = new Schema<IUser, UserModal>(
       type: Boolean,
       default: false,
     },
-    profileImage: {
-      type: String,
-    },
+
     image: {
       type: String,
       default:
