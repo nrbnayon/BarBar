@@ -108,7 +108,6 @@ const salonSchema = new Schema<ISalon, SalonModel>(
     category: {
       type: Schema.Types.ObjectId,
       ref: 'Category',
-      required: true,
     },
   },
   { timestamps: true }

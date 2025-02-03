@@ -33,7 +33,6 @@ const createSalonZodSchema = z.object({
   phone: z.string().min(1).optional(),
   host: z.string().min(15).optional(),
   category: z.string().optional(),
-  bannerImage: z.string().optional(),
   gender: z.enum(['male', 'female', 'both']),
   businessHours: z.array(businessHoursSchema).optional(),
   status: z
@@ -47,7 +46,7 @@ const updateSalonZodSchema = z.object({
   address: locationSchema.optional(),
   phone: z.string().optional(),
   image: z.string().optional(),
-  bannerImage: z.string().optional(),
+  category: z.string().optional(),
   gender: z.enum(['male', 'female', 'both']).optional(),
   businessHours: z.array(businessHoursSchema).optional(),
   status: z
