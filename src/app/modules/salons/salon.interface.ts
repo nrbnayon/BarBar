@@ -24,6 +24,7 @@ export type StatusUpdateHistory = {
 export type ISalon = {
   name: string;
   passportNum: string;
+  salonDocument: string;
   address: Location;
   phone: string;
   image: string;

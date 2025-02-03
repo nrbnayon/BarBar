@@ -1,28 +1,41 @@
+// src\app\modules\cardPayment\card.validation.ts
 import { z } from 'zod';
+import { isExpiryDateValid, validateCardNumber } from '../../../util/cardUtils';
 
 const cardValidationSchema = z.object({
-  cardHolderName: z.string({
-    required_error: 'Card holder name is required',
-  }),
-  cardNumber: z
-    .string({
-      required_error: 'Card number is required',
+  body: z
+    .object({
+      cardHolderName: z.string({
+        required_error: 'Card holder name is required',
+      }),
+      cardNumber: z
+        .string({
+          required_error: 'Card number is required',
+        })
+        .refine(num => /^[0-9]{16}$/.test(num), 'Invalid card number format'),
+      cardType: z.enum(['visa', 'mastercard', 'paypal']),
+      expiryDate: z
+        .string({
+          required_error: 'Expiry date is required',
+        })
+        .regex(/^(0[1-9]|1[0-2])\/([0-9]{2})$/, 'Invalid expiry date (MM/YY)')
+        .refine(
+          isExpiryDateValid,
+          'Card has expired or expiry date is invalid'
+        ),
+      cvv: z
+        .string({
+          required_error: 'CVV is required',
+        })
+        .regex(/^[0-9]{3,4}$/, 'Invalid CVV'),
+      email: z.string().email('Invalid email address'),
+      phone: z.string().regex(/^\+?[1-9]\d{1,14}$/, 'Invalid phone number'),
+      isDefault: z.boolean().optional(),
     })
-    .regex(/^[0-9]{16}$/, 'Invalid card number'),
-  cardType: z.enum(['visa', 'mastercard', 'paypal']),
-  expiryDate: z
-    .string({
-      required_error: 'Expiry date is required',
-    })
-    .regex(/^(0[1-9]|1[0-2])\/([0-9]{2})$/, 'Invalid expiry date (MM/YY)'),
-  cvv: z
-    .string({
-      required_error: 'CVV is required',
-    })
-    .regex(/^[0-9]{3,4}$/, 'Invalid CVV'),
-  email: z.string().email('Invalid email address'),
-  phone: z.string().regex(/^\+?[1-9]\d{1,14}$/, 'Invalid phone number'),
-  isDefault: z.boolean().optional(),
+    .refine(
+      data => validateCardNumber(data.cardNumber, data.cardType),
+      'Invalid card number for the specified card type'
+    ),
 });
 
 const updateCardValidationSchema = z.object({

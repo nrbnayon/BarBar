@@ -23,6 +23,10 @@ router.post(
       };
 
       if (req.files) {
+        console.log('object: ', req.files);
+        const salonDocPath = getFilePath(req.files, 'salonDocument');
+        salonData.salonDocument = salonDocPath;
+
         const imagePath = getFilePath(req.files, 'image');
         if (imagePath) {
           salonData.image = imagePath;

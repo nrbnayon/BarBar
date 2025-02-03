@@ -1,5 +1,12 @@
 // src/shared/getFilePath.ts
-type IFolderName = 'image' | 'media' | 'doc' | 'images' | 'medias' | 'docs';
+type IFolderName =
+  | 'images'
+  | 'salonDocument'
+  | 'media'
+  | 'doc'
+  | 'medias'
+  | 'docs'
+  | 'image';
 
 export const getFilePathMultiple = (
   files: any,
@@ -16,11 +23,16 @@ export const getFilePathMultiple = (
 };
 
 const getFilePath = (files: any, folderName: IFolderName): string | null => {
-  if (!files || !('image' in files) || !files.image[0]) {
-    return null;  
+  if (!files || !(folderName in files) || !files[folderName][0]) {
+    return null;
   }
 
-  return `/${folderName}/${files.image[0].filename}`;
+  const storageFolder = ['image', 'salonDocument', 'images'].includes(
+    folderName
+  )
+    ? 'images'
+    : `${folderName}s`;
+  return `/${storageFolder}/${files[folderName][0].filename}`;
 };
 
 export default getFilePath;

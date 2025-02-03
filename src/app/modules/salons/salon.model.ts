@@ -61,6 +61,12 @@ const salonSchema = new Schema<ISalon, SalonModel>(
       required: true,
       unique: true,
     },
+
+    salonDocument: {
+      type: String,
+      required: true,
+    },
+
     address: { type: locationSchema },
     phone: {
       type: String,

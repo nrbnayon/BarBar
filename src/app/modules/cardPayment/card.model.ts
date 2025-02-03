@@ -1,3 +1,4 @@
+// src\app\modules\cardPayment\card.model.ts
 import { Schema, model } from 'mongoose';
 import { CardModel, ICard } from './card.interface';
 import { encryptCardNumber } from '../../../util/cardUtils';
@@ -8,15 +9,18 @@ const cardSchema = new Schema<ICard>(
       type: Schema.Types.ObjectId,
       ref: 'User',
       required: true,
+      index: true,
     },
     cardHolderName: {
       type: String,
       required: true,
+      trim: true,
     },
     cardNumber: {
       type: String,
       required: true,
       set: encryptCardNumber,
+      select: false,
     },
     cardType: {
       type: String,
@@ -30,15 +34,18 @@ const cardSchema = new Schema<ICard>(
     cvv: {
       type: String,
       required: true,
-      select: false, 
+      select: false,
     },
     email: {
       type: String,
       required: true,
+      trim: true,
+      lowercase: true,
     },
     phone: {
       type: String,
       required: true,
+      trim: true,
     },
     isDefault: {
       type: Boolean,
@@ -47,6 +54,7 @@ const cardSchema = new Schema<ICard>(
     lastFourDigits: {
       type: String,
       required: true,
+      index: true,
     },
   },
   {
@@ -62,6 +70,17 @@ const cardSchema = new Schema<ICard>(
   }
 );
 
+cardSchema.index(
+  {
+    user: 1,
+    lastFourDigits: 1,
+    cardType: 1,
+  },
+  {
+    unique: true,
+    name: 'unique_user_card',
+  }
+);
 // Ensure only one default card per user
 cardSchema.pre('save', async function (next) {
   if (this.isDefault) {

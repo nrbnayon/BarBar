@@ -2,7 +2,7 @@
 import { z } from 'zod';
 
 const locationSchema = z.object({
-  locationName: z.string().min(1, { message: 'Location name is required' }), 
+  locationName: z.string().min(1, { message: 'Location name is required' }),
   latitude: z.number().min(-90).max(90, { message: 'Invalid latitude' }),
   longitude: z.number().min(-180).max(180, { message: 'Invalid longitude' }),
 });
@@ -27,6 +27,7 @@ const businessHoursSchema = z.object({
 const createSalonZodSchema = z.object({
   name: z.string().min(2, { message: 'Name is required' }),
   passportNum: z.string().min(1, { message: 'Passport number is required' }),
+  salonDocument: z.string().min(1, { message: 'Salon documents  is required' }),
   address: locationSchema,
   phone: z.string().min(1, { message: 'Phone number is required' }),
   host: z.string().min(15, { message: 'hostId is required' }),

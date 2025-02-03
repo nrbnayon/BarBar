@@ -24,6 +24,7 @@ import { UserLogRoutes } from '../app/modules/userLog/userLog.route';
 import { SalonRoutes } from '../app/modules/salons/salon.route';
 import { ServiceRoutes } from '../app/modules/services/services.route';
 import { AppointmentRoutes } from '../app/modules/appointment/appointment.route';
+import { CardRoutes } from '../app/modules/cardPayment/card.route';
 
 const router = express.Router();
 
@@ -39,6 +40,7 @@ const apiRoutes = [
   { path: '/appointment', route: AppointmentRoutes },
   { path: '/product', route: ProductRoutes },
   { path: '/payment', route: PaymentRoutes },
+  { path: '/cards', route: CardRoutes },
   { path: '/contact', route: ContactRoutes },
   { path: '/review', route: ReviewRoutes },
   { path: '/petProfile', route: PetProfileRoutes },

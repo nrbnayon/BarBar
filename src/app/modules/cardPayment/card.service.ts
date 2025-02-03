@@ -1,20 +1,83 @@
+// src\app\modules\cardPayment\card.service.ts
 import { StatusCodes } from 'http-status-codes';
 import ApiError from '../../../errors/ApiError';
 import { ICard } from './card.interface';
+import mongoose, { Types } from 'mongoose';
 import { Card } from './card.model';
-import { Types } from 'mongoose';
-import { getLastFourDigits } from '../../../util/cardUtils';
+import { getLastFourDigits, isExpiryDateValid, validateCardNumber } from '../../../util/cardUtils';
 
 const addCard = async (userId: string, payload: ICard): Promise<ICard> => {
-  // Extract last four digits before encryption
-  const lastFourDigits = getLastFourDigits(payload.cardNumber);
+  // Validate card number format
+  if (!validateCardNumber(payload.cardNumber, payload.cardType)) {
+    throw new ApiError(
+      StatusCodes.BAD_REQUEST,
+      'Invalid card number for the specified card type'
+    );
+  }
 
-  const card = await Card.create({
-    ...payload,
-    user: userId,
-    lastFourDigits,
-    isDefault: payload.isDefault ?? false,
-  });
+  // Validate expiry date
+  if (!isExpiryDateValid(payload.expiryDate)) {
+    throw new ApiError(
+      StatusCodes.BAD_REQUEST,
+      'Card has expired or expiry date is invalid'
+    );
+  }
+
+  const session = await mongoose.startSession();
+  let card: ICard;
+
+  try {
+    session.startTransaction();
+
+    const lastFourDigits = getLastFourDigits(payload.cardNumber);
+
+    // Check if card already exists for this user
+    const existingCard = await Card.findOne({
+      user: userId,
+      lastFourDigits: lastFourDigits,
+      cardType: payload.cardType,
+    }).session(session);
+
+    if (existingCard) {
+      throw new ApiError(
+        StatusCodes.CONFLICT,
+        'This card is already registered for this user'
+      );
+    }
+
+    // Create new card if no duplicate found
+    const newCard = await Card.create(
+      [
+        {
+          ...payload,
+          user: userId,
+          lastFourDigits,
+          isDefault: payload.isDefault ?? false,
+        },
+      ],
+      { session }
+    );
+
+    // If this is the first card or isDefault is true, make it the default
+    if (payload.isDefault) {
+      await Card.updateMany(
+        {
+          user: userId,
+          _id: { $ne: newCard[0]._id },
+        },
+        { isDefault: false },
+        { session }
+      );
+    }
+
+    await session.commitTransaction();
+    card = newCard[0];
+  } catch (error) {
+    await session.abortTransaction();
+    throw error;
+  } finally {
+    session.endSession();
+  }
 
   return card;
 };

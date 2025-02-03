@@ -1,100 +1,49 @@
 import crypto from 'crypto';
-import config from '../config';
-
-const ENCRYPTION_KEY = config.payment.card_encryption_key as string; // Must be 32 bytes for aes-256-gcm
-const IV_LENGTH = 16;
 
 export const encryptCardNumber = (cardNumber: string): string => {
-  const iv = crypto.randomBytes(IV_LENGTH);
-  const cipher = crypto.createCipheriv(
-    'aes-256-gcm',
-    Buffer.from(ENCRYPTION_KEY),
-    iv
-  );
-
+  const algorithm = 'aes-256-cbc';
+  const key = Buffer.from(process.env.CARD_ENCRYPTION_KEY || '', 'hex');
+  const iv = crypto.randomBytes(16);
+  const cipher = crypto.createCipheriv(algorithm, key, iv);
   let encrypted = cipher.update(cardNumber, 'utf8', 'hex');
   encrypted += cipher.final('hex');
-
-  const authTag = cipher.getAuthTag();
-
-  // Return IV:AuthTag:EncryptedData
-  return `${iv.toString('hex')}:${authTag.toString('hex')}:${encrypted}`;
+  return `${iv.toString('hex')}:${encrypted}`;
 };
 
-export const decryptCardNumber = (encrypted: string): string => {
-  const [ivHex, authTagHex, encryptedHex] = encrypted.split(':');
-
+export const decryptCardNumber = (encryptedData: string): string => {
+  const algorithm = 'aes-256-cbc';
+  const key = Buffer.from(process.env.CARD_ENCRYPTION_KEY || '', 'hex');
+  const [ivHex, encryptedHex] = encryptedData.split(':');
   const iv = Buffer.from(ivHex, 'hex');
-  const authTag = Buffer.from(authTagHex, 'hex');
-  const decipher = crypto.createDecipheriv(
-    'aes-256-gcm',
-    Buffer.from(ENCRYPTION_KEY),
-    iv
-  );
-
-  decipher.setAuthTag(authTag);
-
+  const decipher = crypto.createDecipheriv(algorithm, key, iv);
   let decrypted = decipher.update(encryptedHex, 'hex', 'utf8');
   decrypted += decipher.final('utf8');
-
   return decrypted;
-};
-
-export const maskCardNumber = (cardNumber: string): string => {
-  return `**** **** **** ${cardNumber.slice(-4)}`;
 };
 
 export const getLastFourDigits = (cardNumber: string): string => {
   return cardNumber.slice(-4);
 };
 
-export const validateCardNumber = (cardNumber: string): boolean => {
-  // Remove any spaces or dashes
-  cardNumber = cardNumber.replace(/[\s-]/g, '');
+export const validateCardNumber = (
+  cardNumber: string,
+  cardType: string
+): boolean => {
+  const cardPatterns = {
+    visa: /^4[0-9]{12}(?:[0-9]{3})?$/,
+    mastercard: /^5[1-5][0-9]{14}$/,
+    paypal: /^[0-9]{16}$/,
+  };
 
-  // Check if the card number contains only digits
-  if (!/^\d+$/.test(cardNumber)) return false;
-
-  // Implement Luhn algorithm
-  let sum = 0;
-  let isEven = false;
-
-  // Loop through values starting from the rightmost digit
-  for (let i = cardNumber.length - 1; i >= 0; i--) {
-    let digit = parseInt(cardNumber.charAt(i));
-
-    if (isEven) {
-      digit *= 2;
-      if (digit > 9) {
-        digit -= 9;
-      }
-    }
-
-    sum += digit;
-    isEven = !isEven;
-  }
-
-  return sum % 10 === 0;
+  return (
+    cardPatterns[cardType as keyof typeof cardPatterns]?.test(cardNumber) ||
+    false
+  );
 };
 
-export const detectCardType = (cardNumber: string): string => {
-  // Remove any spaces or dashes
-  cardNumber = cardNumber.replace(/[\s-]/g, '');
-
-  // Visa
-  if (/^4/.test(cardNumber)) {
-    return 'visa';
-  }
-
-  // Mastercard
-  if (/^5[1-5]/.test(cardNumber)) {
-    return 'mastercard';
-  }
-
-  // PayPal (this is just an example, as PayPal doesn't have specific card numbers)
-  if (/^6/.test(cardNumber)) {
-    return 'paypal';
-  }
-
-  return 'unknown';
+export const isExpiryDateValid = (expiryDate: string): boolean => {
+  const [month, year] = expiryDate.split('/');
+  const expiry = new Date(2000 + parseInt(year), parseInt(month) - 1);
+  const today = new Date();
+  return expiry > today;
 };

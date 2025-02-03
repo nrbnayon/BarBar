@@ -46,7 +46,7 @@ router.post(
  */
 router.get(
   '/',
-  // auth(USER_ROLES.ADMIN, USER_ROLES.USER, USER_ROLES.HOST),
+  auth(USER_ROLES.ADMIN, USER_ROLES.USER, USER_ROLES.HOST),
   BannerController.getAllBanners
 );
 
