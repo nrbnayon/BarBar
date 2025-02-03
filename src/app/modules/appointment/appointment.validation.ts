@@ -18,7 +18,7 @@ const createAppointmentZodSchema = z.object({
 });
 
 const updateAppointmentZodSchema = z.object({
-  status: z.enum(['confirmed', 'cancelled', 'completed', 'no-show']),
+  status: z.enum(['confirmed', 'cancelled', 'completed', 'no-show']).optional(),
   payment: z
     .object({
       status: z.enum(['pending', 'paid', 'refunded', 'failed']),
@@ -30,11 +30,13 @@ const updateAppointmentZodSchema = z.object({
 });
 
 const rescheduleAppointmentZodSchema = z.object({
-  appointmentDate: z.string().refine(date => new Date(date) > new Date(), {
-    message: 'New appointment date must be in the future',
-  }),
-  startTime: z.string().regex(/^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/, {
-    message: 'Invalid time format. Use HH:MM format',
+  body: z.object({
+    appointmentDate: z.string().refine(date => new Date(date) > new Date(), {
+      message: 'New appointment date must be in the future',
+    }),
+    startTime: z.string().regex(/^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/, {
+      message: 'Invalid time format. Use HH:MM format',
+    }),
   }),
 });
 

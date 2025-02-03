@@ -36,7 +36,7 @@ router.get(
 router.patch(
   '/:id/status',
   auth(USER_ROLES.HOST),
-  // validateRequest(AppointmentValidation.updateAppointmentZodSchema),
+  validateRequest(AppointmentValidation.updateAppointmentZodSchema),
   AppointmentController.updateAppointmentStatus
 );
 
