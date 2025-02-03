@@ -13,7 +13,8 @@ interface DeviceInfo {
 
 const createLoginLog = async (req: Request, userId: string, email: string) => {
   try {
-    const userAgent = req.headers['user-agent'] || '';
+    const userAgent =
+      req.headers['user-agent'] || req.headers['user-agent'] || '';
     const parser = new UAParser(userAgent);
 
     const browserInfo = parser.getBrowser();
@@ -28,7 +29,7 @@ const createLoginLog = async (req: Request, userId: string, email: string) => {
     const deviceString = [
       deviceInfo.vendor,
       deviceInfo.model,
-      deviceInfo.type || 'Desktop',
+      deviceInfo.type || req.headers['user-agent'] || 'Desktop',
       osInfo.name,
       osInfo.version,
     ]

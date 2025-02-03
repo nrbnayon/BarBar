@@ -23,11 +23,11 @@ const verifyEmail = catchAsync(async (req: Request, res: Response) => {
 
 const loginUser = catchAsync(async (req: Request, res: Response) => {
   const { ...loginData } = req.body;
+
   const result = await AuthService.loginUserFromDB(loginData);
 
-  // Decode the accessToken to get the userId
   const decodedToken = jwt.decode(result.accessToken) as JwtPayload;
-  const userId = decodedToken?.id; // Extract the `id` field
+  const userId = decodedToken?.id;
 
   if (!userId) {
     throw new Error('Failed to decode user ID from accessToken');
