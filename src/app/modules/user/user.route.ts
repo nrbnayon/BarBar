@@ -24,7 +24,6 @@ router.post(
         }
       }
 
-      // Validate the combined data
       const validatedData = UserValidation.createUserZodSchema.parse(userData);
       req.body = validatedData;
 
@@ -43,7 +42,6 @@ router.patch(
     try {
       let validatedData = { ...req.body };
 
-      // Handle image if present
       if (req.files) {
         const imagePath = getFilePath(req.files, 'images');
         if (imagePath) {
