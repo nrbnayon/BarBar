@@ -18,9 +18,5 @@ export const sendNotifications = async (data: any): Promise<INotification> => {
     socketIo.emit(`get-notification::${data?.receiver}`, result);
   }
 
-  // if (socketIo) {
-  //   socketIo.emit(`get-notification::${data?.receiver}`, result);
-  // }
-
   return result;
 };
