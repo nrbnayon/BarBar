@@ -1,9 +1,9 @@
+// src\app\modules\payment\payment.controller.ts
 import { Request, Response } from 'express';
 import catchAsync from '../../../shared/catchAsync';
 import { PaymentService, stripe } from './payment.service';
 import sendResponse from '../../../shared/sendResponse';
 import { StatusCodes } from 'http-status-codes';
-import Stripe from 'stripe';
 import config from '../../../config';
 
 const makePaymentIntent = catchAsync(async (req: Request, res: Response) => {

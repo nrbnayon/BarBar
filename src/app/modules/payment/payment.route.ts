@@ -1,3 +1,4 @@
+// src\app\modules\payment\payment.route.ts
 import express, { NextFunction, Request, Response } from 'express';
 import { PaymentController } from './payment.controller';
 import auth from '../../middlewares/auth';

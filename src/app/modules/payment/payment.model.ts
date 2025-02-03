@@ -1,3 +1,4 @@
+// src\app\modules\payment\payment.model.ts
 import { model, Schema } from 'mongoose';
 import { IPayment } from './payment.interface';
 import { string } from 'zod';
