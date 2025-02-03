@@ -1,13 +1,18 @@
 // src/app/modules/salons/salon.model.ts
 import { Schema, model } from 'mongoose';
-import { BusinessHours, ISalon, SalonModel, StatusUpdateHistory } from './salon.interface';
+import {
+  BusinessHours,
+  ISalon,
+  SalonModel,
+  StatusUpdateHistory,
+} from './salon.interface';
 import { StatusCodes } from 'http-status-codes';
 import ApiError from '../../../errors/ApiError';
 
 const locationSchema = new Schema({
-  locationName: { type: String, required: true },
-  latitude: { type: Number, required: true },
-  longitude: { type: Number, required: true },
+  locationName: { type: String },
+  latitude: { type: Number },
+  longitude: { type: Number },
 });
 
 const businessHoursSchema = new Schema<BusinessHours>({
@@ -64,13 +69,12 @@ const salonSchema = new Schema<ISalon, SalonModel>(
 
     salonDocument: {
       type: String,
-      required: true,
+      default: '',
     },
 
     address: { type: locationSchema },
     phone: {
       type: String,
-      required: true,
     },
     image: {
       type: String,

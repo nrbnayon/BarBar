@@ -57,7 +57,7 @@ const fileUploadHandler = () => {
   // File filter
   const filterFilter = (req: Request, file: any, cb: FileFilterCallback) => {
     try {
-      if (file.fieldname === 'image' || file.fieldname === 'salonDocument') {
+      if (file.fieldname === 'image') {
         if (
           file.mimetype === 'image/jpeg' ||
           file.mimetype === 'image/png' ||
@@ -104,7 +104,6 @@ const fileUploadHandler = () => {
       fileSize: 10 * 1024 * 1024,
     },
   }).fields([
-    { name: 'salonDocument', maxCount: 1 },
     { name: 'image', maxCount: 3 },
     { name: 'media', maxCount: 3 },
     { name: 'doc', maxCount: 3 },

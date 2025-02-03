@@ -17,9 +17,8 @@ router.post(
         ...req.body,
       };
 
-
       if (req.files) {
-        const imagePath = getFilePath(req.files, 'image');
+        const imagePath = getFilePath(req.files, 'images');
         if (imagePath) {
           userData.image = imagePath;
         }
@@ -46,7 +45,7 @@ router.patch(
 
       // Handle image if present
       if (req.files) {
-        const imagePath = getFilePath(req.files, 'image');
+        const imagePath = getFilePath(req.files, 'images');
         if (imagePath) {
           validatedData.image = imagePath;
         }

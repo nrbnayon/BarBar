@@ -24,7 +24,7 @@ router.post(
       };
 
       if (req.files) {
-        const imagePath = getFilePath(req.files, 'image');
+        const imagePath = getFilePath(req.files, 'images');
         if (imagePath) {
           bannerData.image = imagePath;
         }
@@ -67,7 +67,7 @@ router.patch(
       let validatedData = { ...req.body };
 
       if (req.files) {
-        const imagePath = getFilePath(req.files, 'image');
+        const imagePath = getFilePath(req.files, 'images');
         if (imagePath) {
           validatedData.image = imagePath;
         }

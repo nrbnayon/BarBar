@@ -15,13 +15,12 @@ router.post(
   auth(USER_ROLES.ADMIN),
   (req: Request, res: Response, next: NextFunction) => {
     try {
-      // Extract the image path if an image was uploaded
       const categoryData = {
         ...req.body,
       };
 
       if (req.files) {
-        const imagePath = getFilePath(req.files, 'image');
+        const imagePath = getFilePath(req.files, 'images');
         if (imagePath) {
           categoryData.image = imagePath;
         }
@@ -57,7 +56,7 @@ router.patch(
     try {
       let validatedData = { ...req.body };
       if (req.files) {
-        const imagePath = getFilePath(req.files, 'image');
+        const imagePath = getFilePath(req.files, 'images');
         if (imagePath) {
           validatedData.image = imagePath;
         }

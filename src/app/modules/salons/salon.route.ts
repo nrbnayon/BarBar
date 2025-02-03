@@ -22,13 +22,12 @@ router.post(
         host: user.id,
       };
 
-      if (req.files) {
-        console.log('object: ', req.files);
-        const salonDocPath = getFilePath(req.files, 'salonDocument');
-        salonData.salonDocument = salonDocPath;
+      console.log('Request body:', req.files, salonData);
 
-        const imagePath = getFilePath(req.files, 'image');
+      if (req.files) {
+        const imagePath = getFilePath(req.files, 'images');
         if (imagePath) {
+          salonData.salonDocument = imagePath;
           salonData.image = imagePath;
         }
       }
@@ -52,7 +51,7 @@ router.patch(
     try {
       let updateSalonData = { ...req.body };
       if (req.files) {
-        const imagePath = getFilePath(req.files, 'image');
+        const imagePath = getFilePath(req.files, 'images');
         if (imagePath) {
           updateSalonData.image = imagePath;
         }

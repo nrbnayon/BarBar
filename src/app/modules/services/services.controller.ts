@@ -13,7 +13,7 @@ const createService = catchAsync(
       let serviceData = { ...req.body };
 
       if (req.files) {
-        const imagePath = getFilePath(req.files, 'image');
+        const imagePath = getFilePath(req.files, 'images');
         if (imagePath) {
           serviceData.image = imagePath;
         }
@@ -80,7 +80,7 @@ const updateService = catchAsync(
       let serviceUpdateData = { ...req.body };
       const serviceId = req.params.id;
       if (req.files) {
-        const imagePath = getFilePath(req.files, 'image');
+        const imagePath = getFilePath(req.files, 'images');
         if (imagePath) {
           serviceUpdateData.image = imagePath;
         }
