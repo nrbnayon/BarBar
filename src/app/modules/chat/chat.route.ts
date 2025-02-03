@@ -11,7 +11,7 @@ const router = express.Router();
 
 router.post(
   '/',
-  auth(USER_ROLES.USER),
+  auth(USER_ROLES.USER, USER_ROLES.HOST, USER_ROLES.ADMIN),
   validateRequest(ChatValidation.accessChatZodSchema),
   ChatController.accessChat
 );

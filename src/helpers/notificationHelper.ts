@@ -1,3 +1,4 @@
+// src\helpers\notificationHelper.ts
 import { INotification } from '../app/modules/notification/notification.interface';
 import { Notification } from '../app/modules/notification/notification.model';
 
@@ -7,7 +8,11 @@ export const sendNotifications = async (data: any): Promise<INotification> => {
   //@ts-ignore
   const socketIo = global.io;
 
-  if (data?.type === 'ADMIN') {
+  if (
+    data?.type === 'ADMIN' ||
+    data?.type === 'HOST' ||
+    data?.type === 'USER'
+  ) {
     socketIo.emit(`get-notification::${data?.type}`, result);
   } else {
     socketIo.emit(`get-notification::${data?.receiver}`, result);
