@@ -44,11 +44,9 @@ const statusUpdateHistorySchema = new Schema<StatusUpdateHistory>({
   status: {
     type: String,
     enum: ['active', 'inactive', 'pending', 'rejected'],
-    required: true,
   },
   updatedAt: {
     type: Date,
-    required: true,
   },
   remarks: {
     type: String,
@@ -59,8 +57,8 @@ const salonSchema = new Schema<ISalon, SalonModel>(
   {
     name: {
       type: String,
-      required: true,
     },
+
     passportNum: {
       type: String,
       required: true,
@@ -70,31 +68,33 @@ const salonSchema = new Schema<ISalon, SalonModel>(
     salonDocument: {
       type: String,
       default: '',
+      required: true,
     },
 
-    address: { type: locationSchema },
     phone: {
       type: String,
     },
     image: {
       type: String,
       default: '',
+      required: true,
     },
-    bannerImage: {
-      type: String,
-      default: '',
-    },
+
+    address: { type: locationSchema },
+
     gender: {
       type: String,
       enum: ['male', 'female', 'both'],
-      required: true,
     },
+
     businessHours: [businessHoursSchema],
+
     status: {
       type: String,
       enum: ['active', 'inactive', 'pending', 'rejected'],
       default: 'pending',
     },
+
     remarks: {
       type: String,
       default: 'Initial submission',

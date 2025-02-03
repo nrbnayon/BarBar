@@ -25,13 +25,13 @@ const businessHoursSchema = z.object({
 });
 
 const createSalonZodSchema = z.object({
-  name: z.string().min(2, { message: 'Name is required' }),
+  name: z.string().min(3).optional(),
   passportNum: z.string().min(1, { message: 'Passport number is required' }),
-  image: z.string().min(1, { message: 'Salon image  is required' }),
-  salonDocument: z.string().min(1, { message: 'Salon documents  is required' }),
+  salonDocument: z.string().min(3, { message: 'Salon documents  is required' }),
+  image: z.string().min(3).optional(),
   address: locationSchema.optional(),
-  phone: z.string().min(1, { message: 'Phone number is required' }),
-  host: z.string().min(15, { message: 'hostId is required' }),
+  phone: z.string().min(1).optional(),
+  host: z.string().min(15).optional(),
   category: z.string().optional(),
   bannerImage: z.string().optional(),
   gender: z.enum(['male', 'female', 'both']),
@@ -50,7 +50,9 @@ const updateSalonZodSchema = z.object({
   bannerImage: z.string().optional(),
   gender: z.enum(['male', 'female', 'both']).optional(),
   businessHours: z.array(businessHoursSchema).optional(),
-  status: z.enum(['active', 'inactive', 'pending', 'rejected']).optional(),
+  status: z
+    .enum(['active', 'inactive', 'pending', 'rejected'])
+    .default('pending'),
   remarks: z.string().optional(),
 });
 
