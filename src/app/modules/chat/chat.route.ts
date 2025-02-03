@@ -16,32 +16,36 @@ router.post(
   ChatController.accessChat
 );
 
-router.get('/', auth(USER_ROLES.USER), ChatController.getAllChats);
+router.get(
+  '/',
+  auth(USER_ROLES.USER, USER_ROLES.HOST, USER_ROLES.ADMIN),
+  ChatController.getAllChats
+);
 
 router.post(
   '/group',
-  auth(USER_ROLES.USER),
+  auth(USER_ROLES.USER, USER_ROLES.HOST, USER_ROLES.ADMIN),
   validateRequest(ChatValidation.createGroupChatZodSchema),
   ChatController.createGroupChat
 );
 
 router.patch(
   '/rename',
-  auth(USER_ROLES.USER),
+  auth(USER_ROLES.USER, USER_ROLES.HOST, USER_ROLES.ADMIN),
   validateRequest(ChatValidation.renameGroupZodSchema),
   ChatController.renameGroup
 );
 
 router.patch(
   '/groupremove',
-  auth(USER_ROLES.USER),
+  auth(USER_ROLES.USER, USER_ROLES.HOST, USER_ROLES.ADMIN),
   validateRequest(ChatValidation.groupActionZodSchema),
   ChatController.removeFromGroup
 );
 
 router.patch(
   '/groupadd',
-  auth(USER_ROLES.USER),
+  auth(USER_ROLES.USER, USER_ROLES.HOST, USER_ROLES.ADMIN),
   validateRequest(ChatValidation.groupActionZodSchema),
   ChatController.addToGroup
 );

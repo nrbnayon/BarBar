@@ -8,13 +8,6 @@ import { MessageValidation } from './messages.validation';
 
 const router = express.Router();
 
-router.get(
-  '/:chatId',
-  auth(USER_ROLES.USER),
-  validateRequest(MessageValidation.getChatMessagesZodSchema),
-  MessageController.getAllMessages
-);
-
 router.post(
   '/',
   auth(USER_ROLES.USER, USER_ROLES.HOST, USER_ROLES.ADMIN),
@@ -22,44 +15,51 @@ router.post(
   MessageController.sendMessage
 );
 
+router.get(
+  '/:chatId',
+  auth(USER_ROLES.USER, USER_ROLES.HOST, USER_ROLES.ADMIN),
+  validateRequest(MessageValidation.getChatMessagesZodSchema),
+  MessageController.getAllMessages
+);
+
 router.patch(
   '/:messageId/edit',
-  auth(USER_ROLES.USER),
+  auth(USER_ROLES.USER, USER_ROLES.HOST, USER_ROLES.ADMIN),
   validateRequest(MessageValidation.editMessageZodSchema),
   MessageController.editMessage
 );
 
 router.delete(
   '/:messageId',
-  auth(USER_ROLES.USER),
+  auth(USER_ROLES.USER, USER_ROLES.HOST, USER_ROLES.ADMIN),
   validateRequest(MessageValidation.messageIdParamSchema),
   MessageController.deleteMessage
 );
 
 router.patch(
   '/:messageId/read',
-  auth(USER_ROLES.USER),
+  auth(USER_ROLES.USER, USER_ROLES.HOST, USER_ROLES.ADMIN),
   validateRequest(MessageValidation.messageIdParamSchema),
   MessageController.markMessageAsRead
 );
 
 router.patch(
   '/:messageId/pin',
-  auth(USER_ROLES.USER),
+  auth(USER_ROLES.USER, USER_ROLES.HOST, USER_ROLES.ADMIN),
   validateRequest(MessageValidation.messageIdParamSchema),
   MessageController.togglePinMessage
 );
 
 router.get(
   '/search',
-  auth(USER_ROLES.USER),
+  auth(USER_ROLES.USER, USER_ROLES.HOST, USER_ROLES.ADMIN),
   validateRequest(MessageValidation.searchMessagesZodSchema),
   MessageController.searchMessages
 );
 
 router.get(
   '/:chatId/unseen',
-  auth(USER_ROLES.USER),
+  auth(USER_ROLES.USER, USER_ROLES.HOST, USER_ROLES.ADMIN),
   validateRequest(MessageValidation.getChatMessagesZodSchema),
   MessageController.getUnseenMessageCount
 );
