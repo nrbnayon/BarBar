@@ -33,7 +33,7 @@ const apiRoutes = [
   { path: '/appointment', route: AppointmentRoutes },
   { path: '/payment', route: PaymentRoutes },
   { path: '/cards', route: CardRoutes },
-  { path: '/review', route: ReviewRoutes },
+  { path: '/reviews', route: ReviewRoutes },
   { path: '/setting', route: SettingRoutes },
   { path: '/wishList', route: WishlistRoutes },
   { path: '/notification', route: NotificationRoutes },
