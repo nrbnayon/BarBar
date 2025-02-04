@@ -6,6 +6,10 @@ import { StatusCodes } from 'http-status-codes';
 
 const productSchema = new Schema<IProduct, ProductModel>(
   {
+    salonName: {
+      type: String,
+      trim: true,
+    },
     name: {
       type: String,
       required: true,

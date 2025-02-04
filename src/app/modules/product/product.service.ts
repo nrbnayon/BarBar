@@ -25,7 +25,7 @@ const createProduct = async (payload: IProduct): Promise<IProduct> => {
     // Check if user is the salon host
     const isHost = await User.findOne({
       _id: payload.host,
-      role: 'host',
+      role: 'HOST',
     });
 
     if (!isHost) {
@@ -113,22 +113,21 @@ const getAllProducts = async (
     [sortBy]: sortOrder === 'desc' ? -1 : 1,
   };
 
-  const [products, total] = await Promise.all([
-    Product.find(whereConditions)
-      .populate('salon', 'name address phone')
-      .populate('host', 'name email phone')
-      .sort(sortConditions)
-      .skip(skip)
-      .limit(limit),
-    Product.countDocuments(whereConditions),
-  ]);
+  const total = await Product.countDocuments(whereConditions);
+  const products = await Product.find(whereConditions)
+    .populate('salon', 'name address phone')
+    .populate('host', 'name email phone')
+    .sort(sortConditions)
+    .skip(skip)
+    .limit(limit)
+    .lean();
 
   return {
     meta: {
-      page,
-      limit,
       total,
-      totalPages: Math.ceil(total / limit),
+      page: Number(page),
+      limit: Number(limit),
+      totalPages: Math.ceil(total / Number(limit)),
     },
     data: products,
   };
@@ -215,11 +214,10 @@ const getSimilarProducts = async (productId: string) => {
   const similarProducts = await Product.find({
     _id: { $ne: productId },
     salon: product.salon,
-    category: product.category,
     status: 'active',
   })
     .populate('category', 'name')
-    .populate('salon', 'name address')
+    .populate('salon', 'name address price description image')
     .limit(10)
     .sort({ rating: -1, createdAt: -1 });
 
@@ -228,11 +226,9 @@ const getSimilarProducts = async (productId: string) => {
     const otherProducts = await Product.find({
       _id: { $ne: productId },
       salon: { $ne: product.salon },
-      category: product.category,
       status: 'active',
     })
-      .populate('category', 'name')
-      .populate('salon', 'name address')
+      .populate('salon', 'name address price description image')
       .limit(10 - similarProducts.length)
       .sort({ rating: -1, createdAt: -1 });
 
@@ -241,7 +237,6 @@ const getSimilarProducts = async (productId: string) => {
 
   return similarProducts;
 };
-
 
 export const ProductService = {
   createProduct,

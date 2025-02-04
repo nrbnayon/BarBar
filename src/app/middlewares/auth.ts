@@ -11,7 +11,7 @@ const auth =
     try {
       const tokenWithBearer = req.headers.authorization;
 
-      console.log('Get tokenWithBearer in auth line 14::: ', tokenWithBearer);
+      console.log('Get token Bearer in auth line 14::: ', tokenWithBearer);
 
       if (!tokenWithBearer) {
         throw new ApiError(StatusCodes.UNAUTHORIZED, 'You are not authorized');

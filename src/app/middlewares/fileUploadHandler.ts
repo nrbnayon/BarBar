@@ -23,9 +23,10 @@ const fileUploadHandler = () => {
   // Create filename
   const storage = multer.diskStorage({
     destination: (req, file, cb) => {
-      let uploadDir;
+      let uploadDir: string | undefined;
       switch (file.fieldname) {
         case 'image':
+        case 'images': // Support for multi-image uploads
           uploadDir = path.join(baseUploadDir, 'images');
           break;
         case 'media':
@@ -35,7 +36,10 @@ const fileUploadHandler = () => {
           uploadDir = path.join(baseUploadDir, 'docs');
           break;
         default:
-          throw new ApiError(StatusCodes.BAD_REQUEST, 'File is not supported');
+          return cb(
+            new ApiError(StatusCodes.BAD_REQUEST, 'File is not supported'),
+            ''
+          );
       }
       createDir(uploadDir);
       cb(null, uploadDir);
@@ -57,7 +61,7 @@ const fileUploadHandler = () => {
   // File filter
   const filterFilter = (req: Request, file: any, cb: FileFilterCallback) => {
     try {
-      if (file.fieldname === 'image') {
+      if (file.fieldname === 'image' || file.fieldname === 'images') {
         if (
           file.mimetype === 'image/jpeg' ||
           file.mimetype === 'image/png' ||
@@ -68,7 +72,7 @@ const fileUploadHandler = () => {
           cb(
             new ApiError(
               StatusCodes.BAD_REQUEST,
-              'Only .jpeg, .png, .jpg file supported'
+              'Only .jpeg, .png, .jpg files are supported'
             )
           );
         }
@@ -79,7 +83,7 @@ const fileUploadHandler = () => {
           cb(
             new ApiError(
               StatusCodes.BAD_REQUEST,
-              'Only .mp4, .mp3, file supported'
+              'Only .mp4, .mp3 files are supported'
             )
           );
         }
@@ -87,10 +91,20 @@ const fileUploadHandler = () => {
         if (file.mimetype === 'application/pdf') {
           cb(null, true);
         } else {
-          cb(new ApiError(StatusCodes.BAD_REQUEST, 'Only pdf supported'));
+          cb(
+            new ApiError(
+              StatusCodes.BAD_REQUEST,
+              'Only PDF files are supported'
+            )
+          );
         }
       } else {
-        cb(new ApiError(StatusCodes.BAD_REQUEST, 'This file is not supported'));
+        cb(
+          new ApiError(
+            StatusCodes.BAD_REQUEST,
+            'This file type is not supported'
+          )
+        );
       }
     } catch (error) {
       cb(error as Error);
@@ -105,6 +119,7 @@ const fileUploadHandler = () => {
     },
   }).fields([
     { name: 'image', maxCount: 3 },
+    { name: 'images', maxCount: 10 },
     { name: 'media', maxCount: 3 },
     { name: 'doc', maxCount: 3 },
   ]);

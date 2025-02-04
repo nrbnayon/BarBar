@@ -2,6 +2,7 @@
 import { Model, Types } from 'mongoose';
 
 export type IProduct = {
+  salonName: string;
   name: string;
   images: string[];
   description: string;

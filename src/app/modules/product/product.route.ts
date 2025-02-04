@@ -11,8 +11,8 @@ const router = express.Router();
 
 router.post(
   '/create',
-  auth(USER_ROLES.HOST),
   fileUploadHandler(),
+  auth(USER_ROLES.HOST),
   validateRequest(ProductValidation.createProductSchema),
   ProductController.createProduct
 );

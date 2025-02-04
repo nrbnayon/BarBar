@@ -13,6 +13,7 @@ const createProduct = catchAsync(async (req: Request, res: Response) => {
     ...req.body,
     host: hostId,
   };
+  console.log('Create salon product request: ', productData);
 
   if (req.files) {
     const images = getFilePathMultiple(req.files, 'images', 'image');
@@ -34,8 +35,8 @@ const createProduct = catchAsync(async (req: Request, res: Response) => {
 const getAllProducts = catchAsync(async (req: Request, res: Response) => {
   const filters = req.query;
   const paginationOptions = {
-    page: Number(req.query.page),
-    limit: Number(req.query.limit),
+    page: Number(req.query.page) || 1,
+    limit: Number(req.query.limit) || 10,
     sortBy: req.query.sortBy as string,
     sortOrder: req.query.sortOrder as 'asc' | 'desc',
   };
@@ -49,8 +50,7 @@ const getAllProducts = catchAsync(async (req: Request, res: Response) => {
     success: true,
     statusCode: StatusCodes.OK,
     message: 'Products retrieved successfully',
-    meta: result.meta,
-    data: result.data,
+    data: result,
   });
 });
 
@@ -108,8 +108,8 @@ const getSalonProducts = catchAsync(async (req: Request, res: Response) => {
   const { salonId } = req.params;
   const filters = req.query;
   const paginationOptions = {
-    page: Number(req.query.page),
-    limit: Number(req.query.limit),
+    page: Number(req.query.page) || 1,
+    limit: Number(req.query.limit) || 10,
     sortBy: req.query.sortBy as string,
     sortOrder: req.query.sortOrder as 'asc' | 'desc',
   };
@@ -124,11 +124,9 @@ const getSalonProducts = catchAsync(async (req: Request, res: Response) => {
     success: true,
     statusCode: StatusCodes.OK,
     message: 'Salon products retrieved successfully',
-    meta: result.meta,
-    data: result.data,
+    data: result,
   });
 });
-
 const getSimilarProducts = catchAsync(async (req: Request, res: Response) => {
   const { id } = req.params;
   const result = await ProductService.getSimilarProducts(id);
@@ -140,7 +138,6 @@ const getSimilarProducts = catchAsync(async (req: Request, res: Response) => {
     data: result,
   });
 });
-
 
 export const ProductController = {
   createProduct,
