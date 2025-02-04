@@ -1,81 +1,89 @@
+// src/app/modules/product/product.controller.ts
 import { Request, Response } from 'express';
-import catchAsync from '../../../shared/catchAsync';
-import getFilePath, { getFilePathMultiple } from '../../../shared/getFilePath';
-import { ProductService } from './product.service';
-import sendResponse from '../../../shared/sendResponse';
 import { StatusCodes } from 'http-status-codes';
+import catchAsync from '../../../shared/catchAsync';
+import sendResponse from '../../../shared/sendResponse';
+import { ProductService } from './product.service';
+import { getFilePathMultiple } from '../../../shared/getFilePath';
 
-const createProductIntoDb = catchAsync(async (req: Request, res: Response) => {
-  //   let image = getFilePath(req.files, 'image');
+const createProduct = catchAsync(async (req: Request, res: Response) => {
+  const hostId = req.user.id;
 
-  const value = {
+  const productData = {
     ...req.body,
+    host: hostId,
   };
 
-  let video = getFilePathMultiple(req.files, 'media', 'media');
-  let image = getFilePathMultiple(req.files, 'image', 'image');
-
-  if (image && image.length > 0) {
-    // value.image = image[0];
-    value.image = image;
+  if (req.files) {
+    const images = getFilePathMultiple(req.files, 'images', 'image');
+    if (images && images.length > 0) {
+      productData.images = images;
+    }
   }
 
-  if (video && video.length > 0) {
-    value.video = video[0];
-  }
-
-  const result = await ProductService.createProductIntoDb(value);
+  const result = await ProductService.createProduct(productData);
 
   sendResponse(res, {
     success: true,
-    statusCode: StatusCodes.OK,
+    statusCode: StatusCodes.CREATED,
     message: 'Product created successfully',
     data: result,
   });
 });
 
 const getAllProducts = catchAsync(async (req: Request, res: Response) => {
-  const filter = req.body;
-
-  const result = await ProductService.getAllProducts(req.query);
-  sendResponse(res, {
-    success: true,
-    statusCode: StatusCodes.OK,
-    message: 'Products retrived successfully',
-    data: result,
-  });
-});
-
-const getSingleProduct = catchAsync(async (req: Request, res: Response) => {
-  const result = await ProductService.getSingleProduct(req.params.id);
-  sendResponse(res, {
-    success: true,
-    statusCode: StatusCodes.OK,
-    message: 'Single Products retrived successfully',
-    data: result,
-  });
-});
-
-const updatedProductIntoDb = catchAsync(async (req: Request, res: Response) => {
-  const PrId = req.params.id;
-  const value = {
-    ...req.body,
+  const filters = req.query;
+  const paginationOptions = {
+    page: Number(req.query.page),
+    limit: Number(req.query.limit),
+    sortBy: req.query.sortBy as string,
+    sortOrder: req.query.sortOrder as 'asc' | 'desc',
   };
 
-  let video = getFilePathMultiple(req.files, 'media', 'media');
-  let image = getFilePathMultiple(req.files, 'image', 'image');
+  const result = await ProductService.getAllProducts(
+    filters,
+    paginationOptions
+  );
 
-  if (image && image.length > 0) {
-    // value.image = image[0];
-    value.image = image;
+  sendResponse(res, {
+    success: true,
+    statusCode: StatusCodes.OK,
+    message: 'Products retrieved successfully',
+    meta: result.meta,
+    data: result.data,
+  });
+});
+
+const getProductById = catchAsync(async (req: Request, res: Response) => {
+  const result = await ProductService.getProductById(req.params.id);
+
+  sendResponse(res, {
+    success: true,
+    statusCode: StatusCodes.OK,
+    message: 'Product retrieved successfully',
+    data: result,
+  });
+});
+
+const updateProduct = catchAsync(async (req: Request, res: Response) => {
+  const hostId = req.user.id;
+  const productId = req.params.id;
+
+  let updateData = { ...req.body };
+
+  if (req.files) {
+    const images = getFilePathMultiple(req.files, 'images', 'image');
+    if (images && images.length > 0) {
+      updateData.images = images;
+    }
   }
 
-  if (video && video.length > 0) {
-    value.video = video[0];
-  }
+  const result = await ProductService.updateProduct(
+    productId,
+    hostId,
+    updateData
+  );
 
-  const result = await ProductService.updateProduct(PrId, value);
-  console.log(result, 'result');
   sendResponse(res, {
     success: true,
     statusCode: StatusCodes.OK,
@@ -85,30 +93,61 @@ const updatedProductIntoDb = catchAsync(async (req: Request, res: Response) => {
 });
 
 const deleteProduct = catchAsync(async (req: Request, res: Response) => {
-  const result = await ProductService.deleteProduct(req.params.id);
+  const hostId = req.user.id;
+  const result = await ProductService.deleteProduct(req.params.id, hostId);
+
   sendResponse(res, {
     success: true,
     statusCode: StatusCodes.OK,
-    message: 'Products deleted successfully',
+    message: 'Product deleted successfully',
     data: result,
   });
 });
 
-const similarProducts = catchAsync(async (req: Request, res: Response) => {
-  const result = await ProductService.similarProducts(req.params.id);
+const getSalonProducts = catchAsync(async (req: Request, res: Response) => {
+  const { salonId } = req.params;
+  const filters = req.query;
+  const paginationOptions = {
+    page: Number(req.query.page),
+    limit: Number(req.query.limit),
+    sortBy: req.query.sortBy as string,
+    sortOrder: req.query.sortOrder as 'asc' | 'desc',
+  };
+
+  const result = await ProductService.getSalonProducts(
+    salonId,
+    filters,
+    paginationOptions
+  );
+
   sendResponse(res, {
     success: true,
     statusCode: StatusCodes.OK,
-    message: 'Similar Products retrived successfully',
+    message: 'Salon products retrieved successfully',
+    meta: result.meta,
+    data: result.data,
+  });
+});
+
+const getSimilarProducts = catchAsync(async (req: Request, res: Response) => {
+  const { id } = req.params;
+  const result = await ProductService.getSimilarProducts(id);
+
+  sendResponse(res, {
+    success: true,
+    statusCode: StatusCodes.OK,
+    message: 'Similar products retrieved successfully',
     data: result,
   });
 });
+
 
 export const ProductController = {
-  createProductIntoDb,
+  createProduct,
   getAllProducts,
-  getSingleProduct,
-  updatedProductIntoDb,
+  getProductById,
+  updateProduct,
   deleteProduct,
-  similarProducts,
+  getSalonProducts,
+  getSimilarProducts,
 };

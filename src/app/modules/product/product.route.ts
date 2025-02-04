@@ -1,56 +1,58 @@
-import express, { NextFunction, Request, Response } from 'express';
-
-import fileUploadHandler from '../../middlewares/fileUploadHandler';
-
-import auth from '../../middlewares/auth';
+// src/app/modules/product/product.route.ts
+import express from 'express';
 import { USER_ROLES } from '../../../enums/user';
-import { ProductValidation } from './product.validation';
+import auth from '../../middlewares/auth';
+import validateRequest from '../../middlewares/validateRequest';
 import { ProductController } from './product.controller';
+import { ProductValidation } from './product.validation';
+import fileUploadHandler from '../../middlewares/fileUploadHandler';
 
 const router = express.Router();
 
 router.post(
-  '/create-product',
+  '/create',
+  auth(USER_ROLES.HOST),
   fileUploadHandler(),
-  auth(USER_ROLES.ADMIN),
-  (req: Request, res: Response, next: NextFunction) => {
-    req.body = ProductValidation.createProductSchema.parse(
-      JSON.parse(req.body.data)
-    );
-    return ProductController.createProductIntoDb(req, res, next);
-  }
+  validateRequest(ProductValidation.createProductSchema),
+  ProductController.createProduct
 );
 
-router.get('/', ProductController.getAllProducts);
+router.get(
+  '/all',
+  auth(USER_ROLES.ADMIN, USER_ROLES.HOST, USER_ROLES.USER),
+  ProductController.getAllProducts
+);
 
-router.get('/get-similar-products/:id', ProductController.similarProducts);
+router.get(
+  '/salon/:salonId',
+  auth(USER_ROLES.ADMIN, USER_ROLES.HOST, USER_ROLES.USER),
+  ProductController.getSalonProducts
+);
 
-router.get('/:id', ProductController.getSingleProduct);
+router.get(
+  '/:id',
+  auth(USER_ROLES.ADMIN, USER_ROLES.HOST, USER_ROLES.USER),
+  ProductController.getProductById
+);
 
 router.patch(
   '/:id',
-  auth(USER_ROLES.ADMIN),
+  auth(USER_ROLES.HOST),
   fileUploadHandler(),
-  (req: Request, res: Response, next: NextFunction) => {
-    const { imagesToDelete, data } = req.body;
-
-    if (!data && imagesToDelete) {
-      req.body = { imagesToDelete };
-      return ProductController.updatedProductIntoDb(req, res, next);
-    }
-
-    if (data) {
-      const parsedData = ProductValidation.updateProductSchema.parse(
-        JSON.parse(data)
-      );
-
-      req.body = { ...parsedData, imagesToDelete };
-    }
-
-    return ProductController.updatedProductIntoDb(req, res, next);
-  }
+  validateRequest(ProductValidation.updateProductSchema),
+  ProductController.updateProduct
 );
 
-router.delete('/:id', auth(USER_ROLES.ADMIN), ProductController.deleteProduct);
+router.get(
+  '/similar/:id',
+  auth(USER_ROLES.ADMIN, USER_ROLES.USER, USER_ROLES.HOST),
+  ProductController.getSimilarProducts
+);
+
+router.delete(
+  '/:id',
+  auth(USER_ROLES.HOST, USER_ROLES.ADMIN),
+  ProductController.deleteProduct
+);
 
 export const ProductRoutes = router;

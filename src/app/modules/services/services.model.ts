@@ -41,9 +41,19 @@ const serviceSchema = new Schema<IService, ServiceModel>(
       ref: 'Category',
       required: true,
     },
+    rating: {
+      type: Number,
+      min: 0,
+      max: 5,
+      default: 0,
+    },
+    reviewCount: {
+      type: Number,
+      default: 0,
+    },
     status: {
       type: String,
-      enum: ['active', 'inactive'],
+      enum: ['active', 'inactive', 'delete'],
       default: 'active',
     },
   },

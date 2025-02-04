@@ -1,82 +1,83 @@
+// src/app/modules/product/product.service.ts
 import { StatusCodes } from 'http-status-codes';
+import mongoose, { SortOrder } from 'mongoose';
 import ApiError from '../../../errors/ApiError';
-import { Category } from '../category/category.model';
-import { Payment } from '../payment/payment.model';
-
-import { IProduct, UpdateProductsPayload } from './product.interface';
+import { IProduct, ProductFilters } from './product.interface';
 import { Product } from './product.model';
-import { SortOrder, model } from 'mongoose';
-import unlinkFile from '../../../shared/unlinkFile';
-import { Colour } from '../colours/colours.model';
-import { Size } from '../size/size.model';
+import { Salon } from '../salons/salon.model';
+import { User } from '../user/user.model';
 
-const createProductIntoDb = async (payload: Partial<IProduct>) => {
-  if (!payload.image || !payload.video) {
-    throw new ApiError(StatusCodes.BAD_REQUEST, `Image or Video are required`);
+const createProduct = async (payload: IProduct): Promise<IProduct> => {
+  const session = await mongoose.startSession();
+  try {
+    session.startTransaction();
+
+    // Check if salon exists and is active
+    const salon = await Salon.findOne({
+      _id: payload.salon,
+      status: 'active',
+    });
+
+    if (!salon) {
+      throw new ApiError(StatusCodes.NOT_FOUND, 'Salon not found or inactive');
+    }
+
+    // Check if user is the salon host
+    const isHost = await User.findOne({
+      _id: payload.host,
+      role: 'host',
+    });
+
+    if (!isHost) {
+      throw new ApiError(
+        StatusCodes.FORBIDDEN,
+        'User is not authorized to create products'
+      );
+    }
+
+    const result = await Product.create([payload], { session });
+
+    if (!result.length) {
+      throw new ApiError(StatusCodes.BAD_REQUEST, 'Failed to create product');
+    }
+
+    await session.commitTransaction();
+
+    const populatedProduct = await Product.findById(result[0]._id)
+      .populate('salon', 'name address phone')
+      .populate('host', 'name email phone');
+
+    return populatedProduct!;
+  } catch (error) {
+    await session.abortTransaction();
+    throw error;
+  } finally {
+    session.endSession();
   }
-
-  const result = await Product.create(payload);
-
-  if (!result) {
-    throw new ApiError(StatusCodes.BAD_REQUEST, 'Product not created!');
-  }
-
-  return result;
 };
 
-const getAllProducts = async (query: Record<string, unknown>) => {
+const getAllProducts = async (
+  filters: ProductFilters,
+  paginationOptions: {
+    page?: number;
+    limit?: number;
+    sortBy?: string;
+    sortOrder?: 'asc' | 'desc';
+  }
+) => {
+  const { searchTerm, price, gender, salon, minRating, ...filterData } =
+    filters;
   const {
-    searchTerm,
-    category,
-    colors,
-    gender,
-    page,
-    sizes,
-    limit,
-    newProduct,
-    bestSellingProduct,
+    page = 1,
+    limit = 10,
     sortBy = 'createdAt',
-    order = 'desc',
-    ...filterData
-  } = query;
-  const anyConditions: any[] = [];
+    sortOrder = 'desc',
+  } = paginationOptions;
 
-  if (category) {
-    const categoriesIds = await Category.find({
-      $or: [{ name: { $regex: category, $options: 'i' } }],
-    }).distinct('_id');
-
-    // Only add `category` condition if there are matching categories
-    if (categoriesIds.length > 0) {
-      anyConditions.push({ category: { $in: categoriesIds } });
-    }
-  }
-
-  anyConditions.push({ status: 'active' });
-
-  if (colors) {
-    const coloursIds = await Colour.find({
-      $or: [{ colourName: { $regex: colors, $options: 'i' } }],
-    }).distinct('_id');
-
-    // Only add `category` condition if there are matching categories
-    if (coloursIds.length > 0) {
-      anyConditions.push({ colour: { $in: coloursIds } });
-    }
-  }
-
-  if (sizes) {
-    const sizeIds = await Size.find({
-      $or: [{ sizeName: { $regex: sizes, $options: 'i' } }],
-    }).distinct('_id');
-
-    if (sizeIds.length > 0) {
-      anyConditions.push({ size: { $in: sizeIds } });
-    }
-  }
+  const conditions: any[] = [{ status: 'active' }];
 
   if (searchTerm) {
-    anyConditions.push({
+    conditions.push({
       $or: [
         { name: { $regex: searchTerm, $options: 'i' } },
         { description: { $regex: searchTerm, $options: 'i' } },
@@ -84,145 +85,170 @@ const getAllProducts = async (query: Record<string, unknown>) => {
     });
   }
 
+  if (price) {
+    const priceCondition: any = {};
+    if (price.min !== undefined) priceCondition.$gte = price.min;
+    if (price.max !== undefined) priceCondition.$lte = price.max;
+    if (Object.keys(priceCondition).length) {
+      conditions.push({ price: priceCondition });
+    }
+  }
+
   if (gender) {
-    anyConditions.push({
-      $or: [{ gender: { $regex: gender, $options: 'i' } }],
-    });
+    conditions.push({ gender });
   }
 
-  if (bestSellingProduct) {
-    const ratingValue = parseInt(bestSellingProduct as string, 10);
-
-    if (!isNaN(ratingValue)) {
-      anyConditions.push({
-        rating: ratingValue, // Filter by exact rating
-      });
-    }
+  if (salon) {
+    conditions.push({ salon });
   }
 
-  if (Object.keys(filterData).length > 0) {
-    const filterConditions = Object.entries(filterData).map(
-      ([field, value]) => ({
-        [field]: value,
-      })
-    );
-    anyConditions.push({ $and: filterConditions });
+  if (minRating) {
+    conditions.push({ rating: { $gte: minRating } });
   }
 
-  if (newProduct === 'true') {
-    const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
-    anyConditions.push({ createdAt: { $gte: thirtyDaysAgo } });
-  }
+  const whereConditions = conditions.length > 0 ? { $and: conditions } : {};
 
-  // Apply filter conditions
-  const whereConditions =
-    anyConditions.length > 0 ? { $and: anyConditions } : {};
-  const pages = parseInt(page as string) || 1;
-  const size = parseInt(limit as string) || 10;
-  const skip = (pages - 1) * size;
-
-  // Set default sort order to show new data first
-  const sortOrder: SortOrder = order === 'desc' ? -1 : 1;
-  const sortCondition: { [key: string]: SortOrder } = {
-    [sortBy as string]: sortOrder,
+  const skip = (page - 1) * limit;
+  const sortConditions: { [key: string]: SortOrder } = {
+    [sortBy]: sortOrder === 'desc' ? -1 : 1,
   };
 
-  if (newProduct === 'true') {
-    sortCondition.createdAt = -1;
-  }
+  const [products, total] = await Promise.all([
+    Product.find(whereConditions)
+      .populate('salon', 'name address phone')
+      .populate('host', 'name email phone')
+      .sort(sortConditions)
+      .skip(skip)
+      .limit(limit),
+    Product.countDocuments(whereConditions),
+  ]);
 
-  const result = await Product.find(whereConditions)
-    .populate('category', 'name')
-    .populate('colour', 'colourName')
-    .populate({
-      path: 'size',
-      select: 'sizeName',
-    })
-    .sort(sortCondition)
-    .skip(skip)
-    .limit(size);
-
-  const count = await Product.countDocuments(whereConditions);
-
-  const data: any = {
-    result,
+  return {
     meta: {
-      page: pages,
-      limit: size,
-      total: count,
-      totalPages: Math.ceil(count / size),
-      currentPage: pages,
+      page,
+      limit,
+      total,
+      totalPages: Math.ceil(total / limit),
     },
+    data: products,
   };
-  return data;
 };
 
-const getSingleProduct = async (id: string) => {
-  const result = await Product.findById(id)
-    .populate('category', 'name')
-    .populate('size', 'sizeName')
-    .populate('colour', 'colourName');
-  return result;
-};
+const getProductById = async (id: string): Promise<IProduct | null> => {
+  const product = await Product.findById(id)
+    .populate('salon', 'name address phone')
+    .populate('host', 'name email phone');
 
-const similarProducts = async (category: string) => {
-  const result = await Product.find({ category: category })
-    .sort({ createdAt: -1 })
-    .populate('category', 'name')
-    .populate('size', 'sizeName')
-    .limit(10);
-
-  return result;
-};
-
-const updateProduct = async (id: string, payload: UpdateProductsPayload) => {
-  const isExistProducts = await Product.findById(id);
-
-  if (!isExistProducts) {
-    throw new ApiError(StatusCodes.NOT_FOUND, "Product doesn't exist!");
+  if (!product) {
+    throw new ApiError(StatusCodes.NOT_FOUND, 'Product not found');
   }
 
-  if (payload.imagesToDelete && payload.imagesToDelete.length > 0) {
-    for (let image of payload.imagesToDelete) {
-      unlinkFile(image);
-    }
+  return product;
+};
 
-    isExistProducts.image = isExistProducts.image.filter(
-      (img: string) => !payload.imagesToDelete!.includes(img)
+const updateProduct = async (
+  id: string,
+  hostId: string,
+  payload: Partial<IProduct>
+): Promise<IProduct | null> => {
+  const product = await Product.findOne({ _id: id, host: hostId });
+
+  if (!product) {
+    throw new ApiError(
+      StatusCodes.NOT_FOUND,
+      'Product not found or you are not authorized to update it'
     );
   }
 
-  const updatedImages = payload.image
-    ? [...isExistProducts.image, ...payload.image]
-    : isExistProducts.image;
-
-  const updateData = {
-    ...payload,
-    image: updatedImages,
-  };
-
-  const result = await Product.findByIdAndUpdate(id, updateData, {
+  const result = await Product.findByIdAndUpdate(id, payload, {
     new: true,
     runValidators: true,
-  });
+  })
+    .populate('salon', 'name address phone')
+    .populate('host', 'name email phone');
 
   return result;
 };
-const deleteProduct = async (id: string) => {
-  const result = await Product.findByIdAndUpdate(id, { status: 'delete' });
 
-  if (!result) {
-    throw new ApiError(StatusCodes.NOT_FOUND, "Product doesn't exist!");
+const deleteProduct = async (
+  id: string,
+  hostId: string
+): Promise<IProduct | null> => {
+  const product = await Product.findOne({ _id: id, host: hostId });
+
+  if (!product) {
+    throw new ApiError(
+      StatusCodes.NOT_FOUND,
+      'Product not found or you are not authorized to delete it'
+    );
   }
 
+  const result = await Product.findByIdAndUpdate(
+    id,
+    { status: 'inactive' },
+    { new: true }
+  );
+
   return result;
 };
 
+const getSalonProducts = async (
+  salonId: string,
+  filters: ProductFilters,
+  paginationOptions: {
+    page?: number;
+    limit?: number;
+    sortBy?: string;
+    sortOrder?: 'asc' | 'desc';
+  }
+) => {
+  return getAllProducts({ ...filters, salon: salonId }, paginationOptions);
+};
+
+const getSimilarProducts = async (productId: string) => {
+  const product = await Product.findById(productId);
+  if (!product) {
+    throw new ApiError(StatusCodes.NOT_FOUND, 'Product not found');
+  }
+
+  // Find products with same category and salon, excluding current product
+  const similarProducts = await Product.find({
+    _id: { $ne: productId },
+    salon: product.salon,
+    category: product.category,
+    status: 'active',
+  })
+    .populate('category', 'name')
+    .populate('salon', 'name address')
+    .limit(10)
+    .sort({ rating: -1, createdAt: -1 });
+
+  // If not enough similar products in same salon, find from other salons
+  if (similarProducts.length < 10) {
+    const otherProducts = await Product.find({
+      _id: { $ne: productId },
+      salon: { $ne: product.salon },
+      category: product.category,
+      status: 'active',
+    })
+      .populate('category', 'name')
+      .populate('salon', 'name address')
+      .limit(10 - similarProducts.length)
+      .sort({ rating: -1, createdAt: -1 });
+
+    similarProducts.push(...otherProducts);
+  }
+
+  return similarProducts;
+};
+
+
 export const ProductService = {
-  createProductIntoDb,
+  createProduct,
   getAllProducts,
-  getSingleProduct,
+  getProductById,
   updateProduct,
   deleteProduct,
-  similarProducts,
+  getSalonProducts,
+  getSimilarProducts,
 };

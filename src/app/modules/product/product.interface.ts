@@ -1,23 +1,33 @@
+// src/app/modules/product/product.interface.ts
 import { Model, Types } from 'mongoose';
 
 export type IProduct = {
   name: string;
-  image: string[];
-  video: string;
-  price: number;
-  rating?: number;
-  count?: string;
-  category: Types.ObjectId;
-  colour: Types.ObjectId;
-  size: Types.ObjectId[];
+  images: string[];
   description: string;
-  features: string[];
-  gender: 'male' | 'female';
-  status: 'active' | 'delete';
+  price: number;
+  quantity: number;
+  salon: Types.ObjectId;
+  host: Types.ObjectId;
+  gender: 'male' | 'female' | 'both';
+  status: 'active' | 'inactive';
+  rating?: number;
+  reviewCount?: number;
+  createdAt?: Date;
+  updatedAt?: Date;
 };
 
-export type UpdateProductsPayload = Partial<IProduct> & {
-  imagesToDelete?: string[];
+export type ProductFilters = {
+  searchTerm?: string;
+  price?: {
+    min?: number;
+    max?: number;
+  };
+  gender?: 'male' | 'female' | 'both';
+  salon?: string;
+  minRating?: number;
 };
 
-export type ProductModel = Model<IProduct>;
+export type ProductModel = {
+  isProductExists(id: string): Promise<IProduct | null>;
+} & Model<IProduct>;

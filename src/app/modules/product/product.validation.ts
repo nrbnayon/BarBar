@@ -1,27 +1,40 @@
+// src/app/modules/product/product.validation.ts
 import { z } from 'zod';
 
 const createProductSchema = z.object({
-  name: z.string({ required_error: 'Name is required' }),
-  price: z.number({ required_error: 'Price is required' }),
-  rating: z.number().optional(),
-  category: z.string({ required_error: 'Category is required' }),
-  size: z.array(z.string()).nonempty({ message: 'Size is required' }),
-  colour: z.string({ required_error: 'Colors is required' }),
-  description: z.string({ required_error: 'Description is required' }),
-  gender: z.enum(['male', 'female']),
-  features: z.array(z.string()).nonempty({ message: 'Features is required' }),
+  name: z.string({
+    required_error: 'Product name is required',
+  }),
+  description: z.string({
+    required_error: 'Product description is required',
+  }),
+  price: z
+    .number({
+      required_error: 'Price is required',
+    })
+    .min(0),
+  quantity: z
+    .number({
+      required_error: 'Quantity is required',
+    })
+    .min(0),
+  gender: z.enum(['male', 'female', 'both']),
+  salon: z.string({
+    required_error: 'Salon ID is required',
+  }),
+  host: z.string({
+    required_error: 'Host ID is required',
+  }),
+  status: z.enum(['active', 'inactive']).default('active'),
 });
 
 const updateProductSchema = z.object({
   name: z.string().optional(),
-  price: z.number().optional(),
-  rating: z.number().optional(),
-  category: z.string().optional(),
-  size: z.array(z.string()).nonempty().optional(),
-  colour: z.string().optional(),
   description: z.string().optional(),
-  gender: z.enum(['male', 'female']).optional(),
-  features: z.array(z.string()).nonempty().optional(),
+  price: z.number().min(0).optional(),
+  quantity: z.number().min(0).optional(),
+  gender: z.enum(['male', 'female', 'both']).optional(),
+  status: z.enum(['active', 'inactive']).optional(),
 });
 
 export const ProductValidation = {

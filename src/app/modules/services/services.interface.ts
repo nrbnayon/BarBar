@@ -1,4 +1,4 @@
-// src\app\modules\services\services.interface.ts
+// src/app/modules/services/services.interface.ts
 import { Model, Types } from 'mongoose';
 
 export type IService = {
@@ -11,6 +11,8 @@ export type IService = {
   salon: Types.ObjectId;
   category: Types.ObjectId;
   status: 'active' | 'inactive';
+  rating?: number;
+  reviewCount?: number;
   createdAt?: Date;
   updatedAt?: Date;
 };

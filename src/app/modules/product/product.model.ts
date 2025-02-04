@@ -1,69 +1,79 @@
-import { model, Schema } from 'mongoose';
-import { IProduct } from './product.interface';
+// src/app/modules/product/product.model.ts
+import { Schema, model } from 'mongoose';
+import { IProduct, ProductModel } from './product.interface';
 import ApiError from '../../../errors/ApiError';
 import { StatusCodes } from 'http-status-codes';
 
-const productSchema = new Schema<IProduct>(
+const productSchema = new Schema<IProduct, ProductModel>(
   {
-    category: {
-      type: Schema.Types.ObjectId,
-      ref: 'Category',
-      required: true,
-    },
-
-    colour: {
-      type: Schema.Types.ObjectId,
-      ref: 'Colour',
-      required: true,
-    },
     name: {
       type: String,
       required: true,
       trim: true,
     },
-    image: {
+    images: {
       type: [String],
-    },
-    features: {
-      type: [String],
-    },
-    video: {
-      type: String,
-    },
-    price: {
-      type: Number,
       required: true,
-    },
-    rating: {
-      type: Number,
-    },
-    count: {
-      type: String,
     },
     description: {
       type: String,
       required: true,
     },
-    size: [
-      {
-        type: Schema.Types.ObjectId,
-        ref: 'Size',
-      },
-    ],
+    price: {
+      type: Number,
+      required: true,
+      min: 0,
+    },
+    quantity: {
+      type: Number,
+      required: true,
+      min: 0,
+    },
+    salon: {
+      type: Schema.Types.ObjectId,
+      ref: 'Salon',
+      required: true,
+    },
+    host: {
+      type: Schema.Types.ObjectId,
+      ref: 'User',
+      required: true,
+    },
     gender: {
       type: String,
-      enum: ['male', 'female'],
+      enum: ['male', 'female', 'both'],
       required: true,
     },
     status: {
       type: String,
-      enum: ['active', 'delete'],
+      enum: ['active', 'inactive'],
       default: 'active',
+    },
+    rating: {
+      type: Number,
+      min: 0,
+      max: 5,
+      default: 0,
+    },
+    reviewCount: {
+      type: Number,
+      default: 0,
     },
   },
   {
     timestamps: true,
+    toJSON: {
+      virtuals: true,
+    },
   }
 );
 
-export const Product = model<IProduct>('Product', productSchema);
+productSchema.statics.isProductExists = async function (id: string) {
+  const product = await Product.findById(id);
+  if (!product) {
+    throw new ApiError(StatusCodes.NOT_FOUND, 'Product not found');
+  }
+  return product;
+};
+
+export const Product = model<IProduct, ProductModel>('Product', productSchema);
