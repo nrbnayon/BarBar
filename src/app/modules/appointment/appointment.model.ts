@@ -33,6 +33,11 @@ const paymentInfoSchema = new Schema({
 
 const appointmentSchema = new Schema<IAppointment>(
   {
+    appointmentId: {
+      type: String,
+      unique: true,
+      required: true,
+    },
     user: {
       type: Schema.Types.ObjectId,
       ref: 'User',
@@ -190,6 +195,19 @@ appointmentSchema.statics.getAvailableSlots = async function (
   return slots;
 };
 
+appointmentSchema.statics.generateAppointmentId =
+  async function (): Promise<string> {
+    while (true) {
+      const appointmentId = Math.floor(
+        100000 + Math.random() * 900000
+      ).toString();
+      const existingAppointment = await this.findOne({ appointmentId });
+      if (!existingAppointment) {
+        return appointmentId;
+      }
+    }
+  };
+
 appointmentSchema.statics.updateServiceSlotCount = async function (
   serviceId: string,
   date: Date,
@@ -240,6 +258,9 @@ appointmentSchema.statics.isWithinCancellationWindow = function (
 appointmentSchema.pre('save', async function (next) {
   // If the appointment is new or the appointment date has been modified,
   // set the cancellation deadline to 24 hours before the appointment date/time.
+  if (this.isNew) {
+    this.appointmentId = await this.constructor.generateAppointmentId();
+  }
   if (this.isNew || this.isModified('appointmentDate')) {
     const apptDateTime = new Date(this.appointmentDate);
     this.cancellationDeadline = new Date(

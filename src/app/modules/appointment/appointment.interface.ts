@@ -1,4 +1,5 @@
-// src\app\modules\appointment\appointment.interface.ts
+// src/app/modules/appointment/appointment.interface.ts
+
 import { Model, Types } from 'mongoose';
 
 export type PaymentMethod = 'cash' | 'visa' | 'mastercard' | 'paypal';
@@ -15,6 +16,7 @@ export type PaymentInfo = {
 };
 
 export type IAppointment = {
+  appointmentId: string;
   user: Types.ObjectId;
   service: Types.ObjectId;
   salon: Types.ObjectId;
@@ -35,7 +37,8 @@ export type IAppointment = {
   cancellationDeadline?: Date;
 };
 
-export type AppointmentModel = {
+export interface AppointmentModel extends Model<IAppointment> {
+  generateAppointmentId(): Promise<string>;
   isTimeSlotAvailable(
     salonId: string,
     serviceId: string,
@@ -54,11 +57,4 @@ export type AppointmentModel = {
     increment: boolean
   ): Promise<void>;
   isWithinCancellationWindow(appointmentDate: Date): boolean;
-} & Model<IAppointment>;
-
-export type TimeSlot = {
-  startTime: string;
-  endTime: string;
-  available: boolean;
-  remainingSlots: number;
-};
+}
