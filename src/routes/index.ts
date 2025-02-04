@@ -28,6 +28,7 @@ const apiRoutes = [
   { path: '/banner', route: BannerRoutes },
   { path: '/salon', route: SalonRoutes },
   { path: '/service', route: ServiceRoutes },
+  { path: '/products', route: ReviewRoutes },
   { path: '/appointment', route: AppointmentRoutes },
   { path: '/payment', route: PaymentRoutes },
   { path: '/cards', route: CardRoutes },
