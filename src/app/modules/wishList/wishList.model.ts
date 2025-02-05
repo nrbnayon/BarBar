@@ -1,3 +1,4 @@
+// src\app\modules\wishList\wishList.model.ts
 import { model, Schema } from 'mongoose';
 import { IWishlist } from './wishList.interface';
 

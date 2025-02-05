@@ -1,3 +1,4 @@
+// src\app\modules\wishList\wishList.controller.ts
 import { Request, Response } from 'express';
 import catchAsync from '../../../shared/catchAsync';
 import { WishListService } from './wishList.service';
@@ -58,7 +59,7 @@ const getAllWishListToDB = catchAsync(async (req: Request, res: Response) => {
   sendResponse(res, {
     success: true,
     statusCode: StatusCodes.OK,
-    message: 'WishList retrived successfully',
+    message: 'WishList retrieved successfully',
     data: result,
   });
 });
@@ -70,7 +71,7 @@ const getmyWishList = catchAsync(async (req: Request, res: Response) => {
   sendResponse(res, {
     success: true,
     statusCode: StatusCodes.OK,
-    message: 'WishList retrived successfully',
+    message: 'WishList retrieved successfully',
     data: result,
   });
 });

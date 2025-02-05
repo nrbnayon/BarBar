@@ -1,6 +1,8 @@
 // src/app/modules/review/review.interface.ts
 import { Model, Types } from 'mongoose';
 
+export type Rating = 1 | 2 | 3 | 4 | 5;
+
 export type IReview = {
   rating: number;
   review: string;
@@ -11,6 +13,32 @@ export type IReview = {
   createdAt?: Date;
   updatedAt?: Date;
 };
+
+export interface RatingDistribution {
+  1: number;
+  2: number;
+  3: number;
+  4: number;
+  5: number;
+}
+
+export interface RatingMetadata {
+  totalReviews: number;
+  averageRating: number;
+  ratingDistribution: RatingDistribution;
+}
+
+export interface ReviewResponse {
+  data: IReview[];
+  meta: RatingMetadata;
+}
+
+export interface ReviewFilters {
+  product?: string;
+  service?: string;
+  user?: string;
+  status?: string;
+}
 
 export type ReviewModel = {
   isReviewExists(id: string): Promise<IReview | null>;

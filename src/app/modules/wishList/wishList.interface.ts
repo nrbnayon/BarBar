@@ -1,3 +1,4 @@
+// src\app\modules\wishList\wishList.interface.ts
 import { Types } from 'mongoose';
 
 export type IWishlist = {

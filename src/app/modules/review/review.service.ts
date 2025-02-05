@@ -3,7 +3,14 @@ import { StatusCodes } from 'http-status-codes';
 import ApiError from '../../../errors/ApiError';
 import { Product } from '../product/product.model';
 import { Service } from '../services/services.model';
-import { IReview } from './review.interface';
+import {
+  IReview,
+  RatingMetadata,
+  ReviewResponse,
+  ReviewFilters,
+  RatingDistribution,
+  Rating,
+} from './review.interface';
 import { Review } from './review.model';
 import mongoose from 'mongoose';
 
@@ -84,21 +91,84 @@ const updateServiceRating = async (serviceId: string, session: any) => {
   );
 };
 
-const getReviews = async (filters: {
-  product?: string;
-  service?: string;
-  user?: string;
-  status?: string;
-}) => {
-  const query = { ...filters, status: 'active' };
+const calculateRatingMetadata = async (query: any): Promise<RatingMetadata> => {
+  const reviews = await Review.find(query);
 
-  const reviews = await Review.find(query)
-    .populate('user', 'name email')
-    .populate('product')
-    .populate('service')
-    .sort({ createdAt: -1 });
+  const totalReviews = reviews.length;
 
-  return reviews;
+  const totalRating = reviews.reduce((sum, review) => sum + review.rating, 0);
+  const averageRating =
+    totalReviews > 0 ? Math.round((totalRating / totalReviews) * 10) / 10 : 0;
+
+  const ratingDistribution: RatingDistribution = {
+    1: 0,
+    2: 0,
+    3: 0,
+    4: 0,
+    5: 0,
+  };
+
+  reviews.forEach(review => {
+    const roundedRating = Math.round(review.rating) as Rating;
+    if (roundedRating >= 1 && roundedRating <= 5) {
+      ratingDistribution[roundedRating]++;
+    }
+  });
+
+  return {
+    totalReviews,
+    averageRating,
+    ratingDistribution,
+  };
+};
+
+const getReviews = async (filters: ReviewFilters): Promise<ReviewResponse> => {
+  try {
+    // Construct the query
+    const query: Record<string, any> = { status: 'active' };
+
+    // Add filters if they exist
+    if (filters.product) {
+      query.product = new mongoose.Types.ObjectId(filters.product);
+    }
+    if (filters.service) {
+      query.service = new mongoose.Types.ObjectId(filters.service);
+    }
+    if (filters.user) {
+      query.user = new mongoose.Types.ObjectId(filters.user);
+    }
+
+    // Get the reviews with populated fields
+    const reviews = await Review.find(query)
+      .populate({
+        path: 'user',
+        select: 'name email -_id',
+      })
+      .populate({
+        path: 'product',
+        select: 'name description price -_id',
+      })
+      .populate({
+        path: 'service',
+        select: 'name description price -_id',
+      })
+      .sort({ createdAt: -1 })
+      .lean();
+
+    // Calculate metadata using the same query
+    const meta = await calculateRatingMetadata(query);
+
+    return {
+      meta,
+      data: reviews,
+    };
+  } catch (error) {
+    console.error('Error in getReviews:', error);
+    throw new ApiError(
+      StatusCodes.INTERNAL_SERVER_ERROR,
+      'Error retrieving reviews'
+    );
+  }
 };
 
 const updateReview = async (

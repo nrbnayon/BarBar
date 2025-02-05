@@ -1,3 +1,4 @@
+// src\app\modules\wishList\wishList.route.ts
 import express from 'express';
 import { WishListController } from './wishList.controller';
 import auth from '../../middlewares/auth';
