@@ -105,6 +105,7 @@ const verifyEmailToDB = async (payload: IVerifyEmail) => {
 
   // Find user by email
   const isExistUser = await User.findOne({ email }).select('+authentication');
+
   if (!isExistUser) {
     throw new ApiError(StatusCodes.BAD_REQUEST, "User doesn't exist!");
   }
@@ -148,8 +149,12 @@ const verifyEmailToDB = async (payload: IVerifyEmail) => {
 
   if (!isExistUser.verified) {
     await User.findOneAndUpdate(
-      { _id: isExistUser._id, status: 'active' },
-      { verified: true, authentication: { oneTimeCode: null, expireAt: null } }
+      { _id: isExistUser._id },
+      {
+        verified: true,
+        // status: 'active',
+        authentication: { oneTimeCode: null, expireAt: null },
+      }
     );
     message =
       'Your email has been successfully verified. Your account is now fully activated.';
