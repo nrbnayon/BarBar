@@ -1,5 +1,4 @@
 // src\app\modules\user\user.interface.ts
-
 import { Model } from 'mongoose';
 import { USER_ROLES } from '../../../enums/user';
 
@@ -13,8 +12,8 @@ export type IUser = {
   role: USER_ROLES;
   name: string;
   email: string;
-  phone: string;
-  password: string;
+  phone?: string;
+  password?: string;
   postCode: string;
   address?: Location;
   country?: string;
@@ -45,8 +44,9 @@ export type IUser = {
 };
 
 export type UserModal = {
-  isExistUserById(id: string): any;
-  isExistUserByEmail(email: string): any;
-  isAccountCreated(id: string): any;
-  isMatchPassword(password: string, hashPassword: string): boolean;
+  isExistUserById(id: string): Promise<IUser | null>;
+  isExistUserByEmail(email: string): Promise<IUser | null>;
+  isAccountCreated(id: string): Promise<boolean>;
+  isMatchPassword(password: string, hashPassword: string): Promise<boolean>;
+  findByEmailWithPassword(email: string): Promise<IUser | null>;
 } & Model<IUser>;

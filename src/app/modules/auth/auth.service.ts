@@ -48,7 +48,7 @@ const loginUserFromDB = async (payload: ILoginData) => {
   //check match password
   if (
     password &&
-    !(await User.isMatchPassword(password, isExistUser.password))
+    !User.isMatchPassword(password, isExistUser.password as string)
   ) {
     throw new ApiError(StatusCodes.BAD_REQUEST, 'Password is incorrect!');
   }
@@ -148,7 +148,7 @@ const verifyEmailToDB = async (payload: IVerifyEmail) => {
 
   if (!isExistUser.verified) {
     await User.findOneAndUpdate(
-      { _id: isExistUser._id },
+      { _id: isExistUser._id, status: 'active' },
       { verified: true, authentication: { oneTimeCode: null, expireAt: null } }
     );
     message =
@@ -252,7 +252,7 @@ const changePasswordToDB = async (
   //current password match
   if (
     currentPassword &&
-    !(await User.isMatchPassword(currentPassword, isExistUser.password))
+    !User.isMatchPassword(currentPassword, isExistUser.password as string)
   ) {
     throw new ApiError(StatusCodes.BAD_REQUEST, 'Password is incorrect');
   }

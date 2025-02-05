@@ -4,7 +4,6 @@ import { StatusCodes } from 'http-status-codes';
 import catchAsync from '../../../shared/catchAsync';
 import sendResponse from '../../../shared/sendResponse';
 import { UserService } from './user.service';
-import getFilePath from '../../../shared/getFilePath';
 
 const createUser = catchAsync(
   async (req: Request, res: Response, next: NextFunction) => {
@@ -27,6 +26,17 @@ const createUser = catchAsync(
     }
   }
 );
+
+const setPassword = catchAsync(async (req: Request, res: Response) => {
+  const result = await UserService.setPassword(req.body);
+
+  sendResponse(res, {
+    success: true,
+    statusCode: StatusCodes.OK,
+    message: 'Password set successfully',
+    data: result,
+  });
+});
 
 const getUserProfile = catchAsync(async (req: Request, res: Response) => {
   const user = req.user;
@@ -122,6 +132,7 @@ const updateOnlineStatus = catchAsync(async (req: Request, res: Response) => {
 
 export const UserController = {
   createUser,
+  setPassword,
   getUserProfile,
   updateProfile,
   getAllUser,

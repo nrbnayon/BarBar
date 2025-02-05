@@ -6,6 +6,7 @@ import fileUploadHandler from '../../middlewares/fileUploadHandler';
 import { UserController } from './user.controller';
 import { UserValidation } from './user.validation';
 import getFilePath from '../../../shared/getFilePath';
+import validateRequest from '../../middlewares/validateRequest';
 const router = express.Router();
 
 router.post(
@@ -32,6 +33,12 @@ router.post(
       next(error);
     }
   }
+);
+
+router.post(
+  '/set-password',
+  validateRequest(UserValidation.setPasswordZodSchema),
+  UserController.setPassword
 );
 
 router.patch(

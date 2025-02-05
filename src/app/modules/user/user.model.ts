@@ -32,7 +32,6 @@ const userSchema = new Schema<IUser, UserModal>(
     },
     password: {
       type: String,
-      required: true,
       select: 0,
       minlength: 8,
     },
@@ -64,7 +63,6 @@ const userSchema = new Schema<IUser, UserModal>(
       type: String,
       enum: ['male', 'female', 'both'],
     },
-
     dateOfBirth: {
       type: Date,
     },
@@ -72,7 +70,6 @@ const userSchema = new Schema<IUser, UserModal>(
       type: Boolean,
       default: false,
     },
-
     image: {
       type: String,
       default:
@@ -113,44 +110,67 @@ const userSchema = new Schema<IUser, UserModal>(
   { timestamps: true }
 );
 
-//exist user check
-userSchema.statics.isExistUserById = async (id: string) => {
-  const isExist = await User.findById(id);
-  return isExist;
+// Static methods
+userSchema.statics.isExistUserById = async function (
+  id: string
+): Promise<IUser | null> {
+  return await this.findById(id);
 };
 
-userSchema.statics.isExistUserByEmail = async (email: string) => {
-  const isExist = await User.findOne({ email });
-  return isExist;
+userSchema.statics.isExistUserByEmail = async function (
+  email: string
+): Promise<IUser | null> {
+  return await this.findOne({ email });
 };
 
-//account check
-userSchema.statics.isAccountCreated = async (id: string) => {
-  const isUserExist: any = await User.findById(id);
-  return isUserExist.accountInformation.status;
+userSchema.statics.isAccountCreated = async function (
+  id: string
+): Promise<boolean> {
+  const isUserExist = await this.findById(id);
+  return !!isUserExist;
 };
 
-//is match password
-userSchema.statics.isMatchPassword = async (
+userSchema.statics.isMatchPassword = async function (
   password: string,
   hashPassword: string
-): Promise<boolean> => {
+): Promise<boolean> {
   return await bcrypt.compare(password, hashPassword);
 };
 
-//check user
+userSchema.statics.findByEmailWithPassword = async function (
+  email: string
+): Promise<IUser | null> {
+  return await this.findOne({ email }).select('+password');
+};
+
+// Middleware
 userSchema.pre('save', async function (next) {
-  //check user
-  const isExist = await User.findOne({ email: this.email });
-  if (isExist) {
-    throw new ApiError(StatusCodes.BAD_REQUEST, 'Email already exist!');
+  if (!this.isModified('password')) {
+    return next();
   }
 
-  //password hash
-  this.password = await bcrypt.hash(
-    this.password,
-    Number(config.bcrypt_salt_rounds)
-  );
+  const isExist = await User.findOne({ email: this.email });
+  if (isExist) {
+    throw new ApiError(StatusCodes.BAD_REQUEST, 'Email already exists!');
+  }
+
+  if (this.password) {
+    try {
+      const hashedPassword = await bcrypt.hash(
+        this.password,
+        Number(config.bcrypt_salt_rounds)
+      );
+      this.password = hashedPassword;
+    } catch (error) {
+      return next(
+        new ApiError(
+          StatusCodes.INTERNAL_SERVER_ERROR,
+          'Error hashing password'
+        )
+      );
+    }
+  }
+
   next();
 });
 

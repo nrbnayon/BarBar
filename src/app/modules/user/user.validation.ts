@@ -9,23 +9,55 @@ const locationSchema = z.object({
 });
 
 const createUserZodSchema = z.object({
-  name: z.string().min(1, { message: 'Name is required' }),
-  email: z.string().email({ message: 'Invalid email format' }),
+  name: z.string({
+    required_error: 'Name is required',
+  }),
+  email: z
+    .string({
+      required_error: 'Email is required',
+    })
+    .email('Invalid email address'),
+  role: z
+    .enum(['USER', 'ADMIN', 'HOST'], {
+      required_error: 'Role is required',
+    })
+    .default('USER'),
   password: z
     .string()
-    .min(8, { message: 'Password must be at least 8 characters' }),
-  role: z.enum(['USER', 'ADMIN', 'HOST']).default('USER'),
+    .min(8, 'Password must be at least 8 characters')
+    .optional(),
   phone: z.string().optional(),
   image: z.string().optional(),
-  address: locationSchema.optional(),
+  address: z
+    .object({
+      locationName: z.string().optional(),
+      latitude: z.number().optional(),
+      longitude: z.number().optional(),
+    })
+    .optional(),
   postCode: z.string().optional(),
   gender: z.enum(['male', 'female', 'both']).optional(),
   dateOfBirth: z
     .string()
     .refine(val => !isNaN(Date.parse(val)), {
-      message: 'Invalid date format. Use ISO 8601 format.',
+      message: 'Invalid date format',
     })
     .optional(),
+});
+
+const setPasswordZodSchema = z.object({
+  body: z.object({
+    email: z
+      .string({
+        required_error: 'Email is required',
+      })
+      .email('Invalid email address'),
+    password: z
+      .string({
+        required_error: 'Password is required',
+      })
+      .min(8, 'Password must be at least 8 characters'),
+  }),
 });
 
 const updateZodSchema = z.object({
@@ -53,5 +85,6 @@ const updateLocationZodSchema = z.object({
 export const UserValidation = {
   createUserZodSchema,
   updateZodSchema,
+  setPasswordZodSchema,
   updateLocationZodSchema,
 };
