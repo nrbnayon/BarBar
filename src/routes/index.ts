@@ -17,6 +17,7 @@ import { ServiceRoutes } from '../app/modules/services/services.route';
 import { AppointmentRoutes } from '../app/modules/appointment/appointment.route';
 import { CardRoutes } from '../app/modules/cardPayment/card.route';
 import { ProductRoutes } from '../app/modules/product/product.route';
+import { CartRoutes } from '../app/modules/cart/cart.route';
 
 const router = express.Router();
 
@@ -30,6 +31,7 @@ const apiRoutes = [
   { path: '/salon', route: SalonRoutes },
   { path: '/service', route: ServiceRoutes },
   { path: '/products', route: ProductRoutes },
+  { path: '/cart', route: CartRoutes },
   { path: '/appointment', route: AppointmentRoutes },
   { path: '/payment', route: PaymentRoutes },
   { path: '/cards', route: CardRoutes },
