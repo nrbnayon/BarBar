@@ -50,7 +50,7 @@ const getAllPayment = catchAsync(async (req: Request, res: Response) => {
   sendResponse(res, {
     success: true,
     statusCode: StatusCodes.OK,
-    message: 'Payment intent retrived successfully',
+    message: 'Payment intent retrieved successfully',
     data: data,
   });
 });

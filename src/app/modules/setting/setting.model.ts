@@ -17,7 +17,7 @@ const termSchema = new Schema<ITerms>(
 
 export const TermsAndCondition = model<ITerms>('TermsAndCondition', termSchema);
 
-// return policay
+// return policy
 const returnSchema = new Schema<IRetrun>(
   {
     description: {
