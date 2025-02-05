@@ -32,6 +32,7 @@ const apiRoutes = [
   { path: '/service', route: ServiceRoutes },
   { path: '/products', route: ProductRoutes },
   { path: '/cart', route: CartRoutes },
+  { path: '/wishlist', route: WishlistRoutes },
   { path: '/appointment', route: AppointmentRoutes },
   { path: '/payment', route: PaymentRoutes },
   { path: '/cards', route: CardRoutes },

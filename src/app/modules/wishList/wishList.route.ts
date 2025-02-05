@@ -1,27 +1,23 @@
 // src\app\modules\wishList\wishList.route.ts
 import express from 'express';
-import { WishListController } from './wishList.controller';
-import auth from '../../middlewares/auth';
 import { USER_ROLES } from '../../../enums/user';
+import auth from '../../middlewares/auth';
+import { WishListController } from './wishList.controller';
 
 const router = express.Router();
 
 router.post(
   '/add/:id',
   auth(USER_ROLES.USER),
-  WishListController.createWishListToDB
+  WishListController.addToWishlist
 );
+
 router.delete(
   '/remove/:id',
   auth(USER_ROLES.USER),
-  WishListController.removeWishListToDB
+  WishListController.removeFromWishlist
 );
 
-router.get('/', auth(USER_ROLES.USER), WishListController.getAllWishListToDB);
-router.get(
-  '/get-my-wishlist',
-  auth(USER_ROLES.USER),
-  WishListController.getmyWishList
-);
+router.get('/', auth(USER_ROLES.USER), WishListController.getWishlist);
 
 export const WishlistRoutes = router;

@@ -1,84 +1,54 @@
 // src\app\modules\wishList\wishList.controller.ts
 import { Request, Response } from 'express';
-import catchAsync from '../../../shared/catchAsync';
-import { WishListService } from './wishList.service';
-import sendResponse from '../../../shared/sendResponse';
 import { StatusCodes } from 'http-status-codes';
+import catchAsync from '../../../shared/catchAsync';
+import sendResponse from '../../../shared/sendResponse';
+import { WishListService } from './wishList.service';
 
-const createWishListToDB = catchAsync(async (req: Request, res: Response) => {
+const addToWishlist = catchAsync(async (req: Request, res: Response) => {
   const userId = req.user.id;
-  const product = req.params.id;
+  const productId = req.params.id;
 
-  const result = await WishListService.createWishListToDB(userId, product);
+  const result = await WishListService.addToWishlist(userId, productId);
 
   sendResponse(res, {
     success: true,
     statusCode: StatusCodes.OK,
-    message: 'WishList created successfully',
+    message: 'Product added to wishlist successfully',
     data: result,
   });
 });
 
-const removeWishListToDB = catchAsync(async (req: Request, res: Response) => {
-  try {
-    const userId = req.user.id;
-    const productId = req.params.id;
-
-    // Log the input data
-
-    const result = await WishListService.removeWishListToDB(userId, productId);
-
-    if (!result) {
-      return sendResponse(res, {
-        success: false,
-        statusCode: StatusCodes.NOT_FOUND,
-        message: 'Item not found in the wishlist',
-      });
-    }
-
-    sendResponse(res, {
-      success: true,
-      statusCode: StatusCodes.OK,
-      message: 'WishList removed successfully',
-      data: result,
-    });
-  } catch (error) {
-    console.error('Error removing wishlist item:', error);
-    return sendResponse(res, {
-      success: false,
-      statusCode: StatusCodes.INTERNAL_SERVER_ERROR,
-      message: 'Something went wrong',
-    });
-  }
-});
-
-const getAllWishListToDB = catchAsync(async (req: Request, res: Response) => {
+const removeFromWishlist = catchAsync(async (req: Request, res: Response) => {
   const userId = req.user.id;
-  const result = await WishListService.getAllWishListToDB(userId);
+  const productId = req.params.id;
+
+  const result = await WishListService.removeFromWishlist(userId, productId);
 
   sendResponse(res, {
     success: true,
     statusCode: StatusCodes.OK,
-    message: 'WishList retrieved successfully',
+    message: 'Product removed from wishlist successfully',
     data: result,
   });
 });
 
-const getmyWishList = catchAsync(async (req: Request, res: Response) => {
+const getWishlist = catchAsync(async (req: Request, res: Response) => {
   const userId = req.user.id;
-  const result = await WishListService.myWishList(userId);
+  const filters = req.query;
+
+  const result = await WishListService.getWishlist(userId, filters);
 
   sendResponse(res, {
     success: true,
     statusCode: StatusCodes.OK,
-    message: 'WishList retrieved successfully',
+    message: 'Wishlist retrieved successfully',
     data: result,
   });
 });
 
 export const WishListController = {
-  createWishListToDB,
-  removeWishListToDB,
-  getAllWishListToDB,
-  getmyWishList,
+  addToWishlist,
+  removeFromWishlist,
+  getWishlist,
 };
