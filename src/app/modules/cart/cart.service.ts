@@ -66,30 +66,21 @@ const addToCart = async (
       );
 
       if (existingItemIndex > -1) {
-        // Update quantity if product exists
-        const newQuantity = cart.items[existingItemIndex].quantity + quantity;
-
-        // Check if new total quantity exceeds available stock
-        if (product.quantity < newQuantity) {
-          throw new ApiError(
-            StatusCodes.BAD_REQUEST,
-            `Cannot add ${quantity} more items. Only ${
-              product.quantity - cart.items[existingItemIndex].quantity
-            } items available.`
-          );
-        }
-
-        cart.items[existingItemIndex].quantity = newQuantity;
-      } else {
-        // Add new item if product doesn't exist
-        cart.items.push({
-          product: product._id,
-          quantity,
-          price: product.price,
-          salon: product.salon,
-          host: product.host,
-        });
+        // Instead of updating quantity, throw an error
+        throw new ApiError(
+          StatusCodes.BAD_REQUEST,
+          'Product already exists in cart. Please use update quantity feature to modify existing items.'
+        );
       }
+
+      // Add new item if product doesn't exist
+      cart.items.push({
+        product: product._id,
+        quantity,
+        price: product.price,
+        salon: product.salon,
+        host: product.host,
+      });
 
       // Recalculate total amount
       cart.totalAmount = cart.items.reduce(
