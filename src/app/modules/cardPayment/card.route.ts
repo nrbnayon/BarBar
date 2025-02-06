@@ -17,7 +17,7 @@ router.post(
 
 router.get(
   '/',
-  auth(USER_ROLES.USER, USER_ROLES.HOST),
+  auth(USER_ROLES.USER, USER_ROLES.HOST, USER_ROLES.ADMIN),
   CardController.getAllCards
 );
 
