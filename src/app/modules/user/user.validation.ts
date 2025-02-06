@@ -52,6 +52,13 @@ const setPasswordZodSchema = z.object({
         required_error: 'Email is required',
       })
       .email('Invalid email address'),
+    address: z
+      .object({
+        locationName: z.string().optional(),
+        latitude: z.number().optional(),
+        longitude: z.number().optional(),
+      })
+      .optional(),
     password: z
       .string({
         required_error: 'Password is required',

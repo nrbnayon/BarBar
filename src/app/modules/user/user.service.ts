@@ -9,7 +9,7 @@ import { emailHelper } from '../../../helpers/emailHelper';
 import { emailTemplate } from '../../../shared/emailTemplate';
 import generateOTP from '../../../util/generateOTP';
 import colors from 'colors';
-import { IUser } from './user.interface';
+import { IUser, SetPasswordPayload } from './user.interface';
 import { User } from './user.model';
 import { sendNotifications } from '../../../helpers/notificationHelper';
 import unlinkFile from '../../../shared/unlinkFile';
@@ -172,8 +172,8 @@ const createUserFromDb = async (payload: IUser) => {
   }
 };
 
-const setPassword = async (payload: { email: string; password: string }) => {
-  const { email, password } = payload;
+const setPassword = async (payload: SetPasswordPayload) => {
+  const { email, password, address } = payload;
 
   const user = await User.findOne({ email });
 
@@ -197,6 +197,7 @@ const setPassword = async (payload: { email: string; password: string }) => {
     user._id,
     {
       password: hashedPassword,
+      address,
       status: 'active',
     },
     { new: true }

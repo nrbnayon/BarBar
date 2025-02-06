@@ -1,35 +1,35 @@
 // src\app\modules\payment\payment.route.ts
-import express, { NextFunction, Request, Response } from 'express';
-import { PaymentController } from './payment.controller';
-import auth from '../../middlewares/auth';
+import express from 'express';
 import { USER_ROLES } from '../../../enums/user';
+import auth from '../../middlewares/auth';
+import validateRequest from '../../middlewares/validateRequest';
+import { PaymentController } from './payment.controller';
+import { PaymentValidation } from './payment.validation';
 
 const router = express.Router();
 
+// Create payment route
 router.post(
-  '/create-payment',
+  '/create',
   auth(USER_ROLES.USER),
-  PaymentController.makePaymentIntent
+  validateRequest(PaymentValidation.createPaymentSchema),
+  PaymentController.createPayment
 );
 
-router.patch(
-  '/payment-confirmation',
-  auth(USER_ROLES.USER),
-  PaymentController.paymentConfirmation
-);
-router.get('/', auth(USER_ROLES.ADMIN), PaymentController.getAllPayment);
-
-router.get(
-  '/getUser',
-  auth(USER_ROLES.USER),
-  PaymentController.getAllUserPayment
-);
-
-//webhook
+// Confirm payment route
 router.post(
-  '/create-checkout-session',
+  '/confirm',
   auth(USER_ROLES.USER),
-  PaymentController.createCheckoutSessionController
+  validateRequest(PaymentValidation.confirmPaymentSchema),
+  PaymentController.confirmPayment
 );
+
+// Get user payments route
+router.get('/user', auth(USER_ROLES.USER), PaymentController.getUserPayments);
+
+// Get host payments route
+router.get('/host', auth(USER_ROLES.HOST), PaymentController.getHostPayments);
+
+router.get('/', auth(USER_ROLES.ADMIN), PaymentController.getAllPayments);
 
 export const PaymentRoutes = router;

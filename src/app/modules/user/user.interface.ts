@@ -8,6 +8,12 @@ export type Location = {
   longitude: number;
 };
 
+export interface SetPasswordPayload {
+  email: string;
+  password: string;
+  address?: Location;
+}
+
 export type IUser = {
   role: USER_ROLES;
   name: string;

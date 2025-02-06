@@ -1,3 +1,4 @@
+// src\app\modules\cart\cart.model.ts
 import { Schema, model } from 'mongoose';
 import { ICart, ICartItem } from './cart.interface';
 

@@ -1,27 +1,42 @@
 // src\app\modules\payment\payment.interface.ts
 import { Types } from 'mongoose';
+import { PaymentMethod } from '../appointment/appointment.interface';
 
 export interface IProductWithQuantity {
   productId: Types.ObjectId;
-  quantity: number;
-  size: string;
-  neckSize: string;
-  chestSize: string;
-  collarSize: string;
-  price?: number;
+  quantity?: number;
+  price: number;
+  salon: Types.ObjectId;
+  host: Types.ObjectId;
 }
 
-export type IPayment = {
+export interface IPayment {
   amount: number;
   user: Types.ObjectId;
   products: IProductWithQuantity[];
-  transactionId: string;
-  size: string;
-  neckSize: string;
-  chestSize: string;
-  collarSize: string;
+  paymentMethod: PaymentMethod;
+  cardId?: Types.ObjectId; 
+  transactionId?: string;
+  status: 'pending' | 'completed' | 'failed' | 'cancelled';
   email: string;
-  code?: string;
-  status: string;
-  client_secret: string;
+  salon: Types.ObjectId;
+  host: Types.ObjectId;
+  createdAt?: Date;
+  updatedAt?: Date;
+}
+
+export interface IPaymentIntent {
+  clientSecret: string;
+  transactionId: string;
+  amount: number;
+}
+
+export type PaymentFilters = {
+  searchTerm?: string;
+  status?: string;
+  paymentMethod?: PaymentMethod;
+  salon?: string;
+  host?: string;
+  startDate?: Date;
+  endDate?: Date;
 };
