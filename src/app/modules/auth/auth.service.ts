@@ -11,6 +11,7 @@ import {
   IAuthResetPassword,
   IChangePassword,
   ILoginData,
+  ISocialLoginData,
   IVerifyEmail,
 } from '../../../types/auth';
 import cryptoToken from '../../../util/cryptoToken';
@@ -25,7 +26,6 @@ import { startSession } from 'mongoose';
 import { OAuth2Client } from 'google-auth-library';
 
 const googleClient = new OAuth2Client(config.google.clientId);
-
 
 //login
 const loginUserFromDB = async (payload: ILoginData) => {
@@ -81,112 +81,145 @@ const loginUserFromDB = async (payload: ILoginData) => {
   return { accessToken, refreshToken };
 };
 
-
 // social login
 
-const userSocialLogin = async (payload: ILoginData) => {
-  const { email, appId, role, type, fcmToken } = payload;
+const loginUserSocial = async (payload: ISocialLoginData) => {
+  const { email, name, appId, role, type, fcmToken, image } = payload;
 
-  if (type === 'social') {
-    const session = await startSession();
-    let user: any | null;
-
-    try {
-      session.startTransaction();
-
-      // Check if user already exists
-      user = await User.findOne({ email });
-
-      if (!user) {
-        // Create user
-        const [newUser] = await User.create(
-          [
-            {
-              appId,
-              fcmToken,
-              role,
-              email,
-              verified: true,
-            },
-          ],
-          { session }
-        );
-
-        if (!newUser) {
-          throw new ApiError(
-            StatusCodes.INTERNAL_SERVER_ERROR,
-            'Failed to create user'
-          );
-        }
-
-        user = newUser;
-
-        // Create related entity based on role
-        if (role === USER_ROLES.USER) {
-          await User.create(
-            [
-              {
-                userId: user._id,
-                email: user.email,
-                status: 'active',
-                firstName: '',
-                lastName: '',
-                address: '',
-                image: '',
-                phone: '',
-              },
-            ],
-            { session }
-          );
-        } else if (role === USER_ROLES.HOST) {
-          await User.create(
-            [
-              {
-                userId: user._id,
-                email: user.email,
-                status: 'active',
-                firstName: '', 
-                lastName: '', 
-                address: '', 
-                image: '', 
-                phone: '', 
-              },
-            ],
-            { session }
-          );
-        }
-      }
-
-      // Commit transaction
-      await session.commitTransaction();
-
-      // Generate tokens
-      const accessToken = jwtHelper.createToken(
-        { id: user._id, role: user.role, email: user.email, name: user.name },
-        config.jwt.jwt_secret as Secret,
-        '7d'
-      );
-
-      const refreshToken = jwtHelper.createToken(
-        { id: user._id, role: user.role, email: user.email },
-        config.jwt.jwtRefreshSecret as Secret,
-        '15d'
-      );
-
-      return { accessToken, refreshToken };
-    } catch (error) {
-      // Abort transaction on error
-      await session.abortTransaction();
-      throw error;
-    } finally {
-      // End session
-      await session.endSession();
-    }
+  if (!Object.values(USER_ROLES).includes(role)) {
+    throw new ApiError(StatusCodes.BAD_REQUEST, 'Invalid user role');
   }
 
-  throw new ApiError(StatusCodes.BAD_REQUEST, 'Invalid login type');
-};
+  // Validate login type specific requirements
+  if (type === 'GOOGLE' && !fcmToken) {
+    throw new ApiError(
+      StatusCodes.BAD_REQUEST,
+      'FCM token is required for Google login'
+    );
+  }
 
+  if (type === 'APPLE' && !appId) {
+    throw new ApiError(
+      StatusCodes.BAD_REQUEST,
+      'App ID is required for Apple login'
+    );
+  }
+
+  const session = await startSession();
+  let user: any | null;
+
+  try {
+    session.startTransaction();
+
+    user = await User.findOne({ email });
+
+    if (!user) {
+      if (role === USER_ROLES.ADMIN) {
+        throw new ApiError(
+          StatusCodes.FORBIDDEN,
+          'Cannot create admin user through social login'
+        );
+      }
+
+      const userData = {
+        name,
+        email,
+        role,
+        verified: true,
+        image:
+          image ||
+          'https://www.shutterstock.com/shutterstock/photos/1153673752/display_1500/stock-vector-profile-placeholder-image-gray-silhouette-no-photo-1153673752.jpg',
+        status: 'active',
+        onlineStatus: true,
+        lastActiveAt: new Date(),
+        address: {
+          locationName: '',
+          latitude: null,
+          longitude: null,
+        },
+      };
+
+      // Add login type specific fields
+      if (type === 'GOOGLE') {
+        Object.assign(userData, { fcmToken });
+      } else if (type === 'APPLE') {
+        Object.assign(userData, { appId });
+      }
+
+      const [newUser] = await User.create([userData], { session });
+
+      if (!newUser) {
+        throw new ApiError(
+          StatusCodes.INTERNAL_SERVER_ERROR,
+          'Failed to create user'
+        );
+      }
+
+      user = newUser;
+    } else {
+      if (user.role !== role) {
+        throw new ApiError(
+          StatusCodes.CONFLICT,
+          'User exists with different role'
+        );
+      }
+
+      // Update based on login type
+      if (type === 'GOOGLE') {
+        user.fcmToken = fcmToken;
+      } else if (type === 'APPLE') {
+        user.appId = appId;
+      }
+
+      user.onlineStatus = true;
+      user.lastActiveAt = new Date();
+      await user.save({ session });
+    }
+
+    await session.commitTransaction();
+
+    const accessToken = jwtHelper.createToken(
+      {
+        id: user._id,
+        role: user.role as USER_ROLES,
+        email: user.email,
+        name: user.name,
+      },
+      config.jwt.jwt_secret as Secret,
+      '7d'
+    );
+
+    const refreshToken = jwtHelper.createToken(
+      {
+        id: user._id,
+        role: user.role as USER_ROLES,
+        email: user.email,
+      },
+      config.jwt.jwtRefreshSecret as Secret,
+      '15d'
+    );
+
+    return {
+      accessToken,
+      refreshToken,
+      user: {
+        id: user._id,
+        name: user.name,
+        email: user.email,
+        role: user.role as USER_ROLES,
+        image: user.image,
+        verified: user.verified,
+        status: user.status,
+        loginType: type,
+      },
+    };
+  } catch (error) {
+    await session.abortTransaction();
+    throw error;
+  } finally {
+    await session.endSession();
+  }
+};
 //forget password
 const forgetPasswordToDB = async (email: string) => {
   const isExistUser = await User.isExistUserByEmail(email);
@@ -286,7 +319,7 @@ const verifyEmailToDB = async (payload: IVerifyEmail) => {
     await ResetToken.create({
       user: isExistUser._id,
       token: createToken,
-      expireAt: new Date(Date.now() + 5 * 60000), 
+      expireAt: new Date(Date.now() + 5 * 60000),
     });
     message =
       'Verification Successful: Please securely store and utilize this code for resetting your password.';
@@ -514,7 +547,7 @@ const logoutUser = async (
 export const AuthService = {
   verifyEmailToDB,
   loginUserFromDB,
-  userSocialLogin,
+  loginUserSocial,
   forgetPasswordToDB,
   resetPasswordToDB,
   changePasswordToDB,

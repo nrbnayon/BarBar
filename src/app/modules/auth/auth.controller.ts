@@ -50,7 +50,7 @@ const loginUser = catchAsync(async (req: Request, res: Response) => {
 
 const loginUserForSocial = catchAsync(async (req: Request, res: Response) => {
   const { ...loginData } = req.body;
-  const result: any = await AuthService.userSocialLogin(loginData);
+  const result: any = await AuthService.loginUserSocial(loginData);
 
   sendResponse(res, {
     success: true,
