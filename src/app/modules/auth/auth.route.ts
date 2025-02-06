@@ -12,6 +12,8 @@ router.post(
   AuthController.loginUser
 );
 
+router.post('/login-for-social', AuthController.loginUserForSocial);
+
 router.post(
   '/verify-email',
   validateRequest(AuthValidation.createVerifyEmailZodSchema),

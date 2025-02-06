@@ -20,6 +20,12 @@ import { User } from '../user/user.model';
 import { ResetToken } from '../resetToken/resetToken.model';
 import { UserLogService } from '../userLog/userLog.service';
 import { Response } from 'express';
+import { USER_ROLES } from '../../../enums/user';
+import { startSession } from 'mongoose';
+import { OAuth2Client } from 'google-auth-library';
+
+const googleClient = new OAuth2Client(config.google.clientId);
+
 
 //login
 const loginUserFromDB = async (payload: ILoginData) => {
@@ -73,6 +79,112 @@ const loginUserFromDB = async (payload: ILoginData) => {
   );
 
   return { accessToken, refreshToken };
+};
+
+
+// social login
+
+const userSocialLogin = async (payload: ILoginData) => {
+  const { email, appId, role, type, fcmToken } = payload;
+
+  if (type === 'social') {
+    const session = await startSession();
+    let user: any | null;
+
+    try {
+      session.startTransaction();
+
+      // Check if user already exists
+      user = await User.findOne({ email });
+
+      if (!user) {
+        // Create user
+        const [newUser] = await User.create(
+          [
+            {
+              appId,
+              fcmToken,
+              role,
+              email,
+              verified: true,
+            },
+          ],
+          { session }
+        );
+
+        if (!newUser) {
+          throw new ApiError(
+            StatusCodes.INTERNAL_SERVER_ERROR,
+            'Failed to create user'
+          );
+        }
+
+        user = newUser;
+
+        // Create related entity based on role
+        if (role === USER_ROLES.USER) {
+          await User.create(
+            [
+              {
+                userId: user._id,
+                email: user.email,
+                status: 'active',
+                firstName: '',
+                lastName: '',
+                address: '',
+                image: '',
+                phone: '',
+              },
+            ],
+            { session }
+          );
+        } else if (role === USER_ROLES.HOST) {
+          await User.create(
+            [
+              {
+                userId: user._id,
+                email: user.email,
+                status: 'active',
+                firstName: '', 
+                lastName: '', 
+                address: '', 
+                image: '', 
+                phone: '', 
+              },
+            ],
+            { session }
+          );
+        }
+      }
+
+      // Commit transaction
+      await session.commitTransaction();
+
+      // Generate tokens
+      const accessToken = jwtHelper.createToken(
+        { id: user._id, role: user.role, email: user.email, name: user.name },
+        config.jwt.jwt_secret as Secret,
+        '7d'
+      );
+
+      const refreshToken = jwtHelper.createToken(
+        { id: user._id, role: user.role, email: user.email },
+        config.jwt.jwtRefreshSecret as Secret,
+        '15d'
+      );
+
+      return { accessToken, refreshToken };
+    } catch (error) {
+      // Abort transaction on error
+      await session.abortTransaction();
+      throw error;
+    } finally {
+      // End session
+      await session.endSession();
+    }
+  }
+
+  throw new ApiError(StatusCodes.BAD_REQUEST, 'Invalid login type');
 };
 
 //forget password
@@ -143,7 +255,6 @@ const verifyEmailToDB = async (payload: IVerifyEmail) => {
     );
   }
 
-  // If user is not verified, mark as verified
   let message;
   let data;
 
@@ -159,7 +270,6 @@ const verifyEmailToDB = async (payload: IVerifyEmail) => {
     message =
       'Your email has been successfully verified. Your account is now fully activated.';
   } else {
-    // If user is already verified, generate a reset token
     await User.findOneAndUpdate(
       { _id: isExistUser._id },
       {
@@ -176,7 +286,7 @@ const verifyEmailToDB = async (payload: IVerifyEmail) => {
     await ResetToken.create({
       user: isExistUser._id,
       token: createToken,
-      expireAt: new Date(Date.now() + 5 * 60000), // Token valid for 5 minutes
+      expireAt: new Date(Date.now() + 5 * 60000), 
     });
     message =
       'Verification Successful: Please securely store and utilize this code for resetting your password.';
@@ -404,6 +514,7 @@ const logoutUser = async (
 export const AuthService = {
   verifyEmailToDB,
   loginUserFromDB,
+  userSocialLogin,
   forgetPasswordToDB,
   resetPasswordToDB,
   changePasswordToDB,
