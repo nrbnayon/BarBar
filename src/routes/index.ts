@@ -7,7 +7,7 @@ import { CategoryRoutes } from '../app/modules/category/category.route';
 import { PaymentRoutes } from '../app/modules/payment/payment.route';
 import { BannerRoutes } from '../app/modules/banner/banner.route';
 import { ReviewRoutes } from '../app/modules/review/review.route';
-import { SettingRoutes } from '../app/modules/setting/setting.route';
+// import { SettingRoutes } from '../app/modules/setting/setting.route';
 import { WishlistRoutes } from '../app/modules/wishList/wishList.route';
 import { NotificationRoutes } from '../app/modules/notification/notification.route';
 import { MessageRoutes } from '../app/modules/messages/messages.route';
@@ -37,7 +37,7 @@ const apiRoutes = [
   { path: '/payment', route: PaymentRoutes },
   { path: '/cards', route: CardRoutes },
   { path: '/reviews', route: ReviewRoutes },
-  { path: '/setting', route: SettingRoutes },
+  // { path: '/setting', route: SettingRoutes },
   { path: '/wishList', route: WishlistRoutes },
   { path: '/notification', route: NotificationRoutes },
   { path: '/message', route: MessageRoutes },
