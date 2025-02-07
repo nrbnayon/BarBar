@@ -23,7 +23,6 @@ const apiRoutes = [
   { path: '/user', route: UserRoutes },
   { path: '/auth', route: AuthRoutes },
   { path: '/device', route: UserLogRoutes },
-
   { path: '/category', route: CategoryRoutes },
   { path: '/banner', route: BannerRoutes },
   { path: '/salon', route: SalonRoutes },
