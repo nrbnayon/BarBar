@@ -49,6 +49,59 @@ const markAsRead = async (
   return { modifiedCount: result.modifiedCount };
 };
 
+const getHostNotifications = async (
+  userId: string,
+  filters: INotificationFilters,
+  paginationOptions: IPaginationOptions
+) => {
+  const { searchTerm, read, startDate, endDate } = filters;
+  const { page, limit, skip, sortBy, sortOrder } =
+    paginationHelper.calculatePagination(paginationOptions);
+
+  // Define query: Match receiver to userId and type to "HOST"
+  const query: Record<string, any> = { receiver: userId, type: 'HOST' };
+
+  if (searchTerm) {
+    query.message = { $regex: searchTerm, $options: 'i' };
+  }
+
+  if (typeof read === 'boolean') {
+    query.read = read;
+  }
+
+  if (startDate && endDate) {
+    query.createdAt = {
+      $gte: new Date(startDate),
+      $lte: new Date(endDate),
+    };
+  }
+
+  // Retrieve matching notifications
+  const result = await Notification.find(query)
+    .sort({ [sortBy]: sortOrder })
+    .skip(skip)
+    .limit(limit)
+    .lean();
+
+  // Count total and unread notifications
+  const total = await Notification.countDocuments(query);
+  const unreadCount = await Notification.countDocuments({
+    ...query,
+    read: false,
+  });
+
+  return {
+    meta: {
+      page,
+      limit,
+      total,
+      unreadCount,
+    },
+    data: result,
+  };
+};
+
+
 const getAdminNotifications = async (
   filters: INotificationFilters,
   paginationOptions: IPaginationOptions
@@ -146,86 +199,6 @@ export const NotificationService = {
   deleteAllNotifications,
   createNotification,
   getNotificationById,
+  getHostNotifications,
 };
 
-
-// import { JwtPayload } from 'jsonwebtoken';
-// import { Notification } from './notification.model';
-// import { SortOrder } from 'mongoose';
-
-// const getNotificationToDb = async (user: JwtPayload) => {
-//   const result = await Notification.find({ receiver: user.id });
-
-//   const unredCount = await Notification.countDocuments({
-//     receiver: user.id,
-//     read: false,
-//   });
-
-//   const data = {
-//     result,
-//     unredCount,
-//   };
-
-//   return data;
-// };
-
-// const readNotification = async (user: JwtPayload) => {
-//   const result = await Notification.updateMany(
-//     { receiver: user.id },
-//     { read: true }
-//   );
-//   return result;
-// };
-
-// const adminNotification = async (query: Record<string, unknown>) => {
-//   const { page, limit } = query;
-
-//   // Apply filter conditions
-
-//   const pages = parseInt(page as string) || 1;
-//   const size = parseInt(limit as string) || 10;
-//   const skip = (pages - 1) * size;
-
-//   // Set default sort order to show new data first
-
-//   const result = await Notification.find()
-
-//     .sort({ createdAt: -1 })
-//     .skip(skip)
-//     .limit(size)
-//     .lean();
-//   const total = await Notification.countDocuments();
-//   const unread = await Notification.countDocuments({ read: false });
-
-//   const data: any = {
-//     result,
-//     meta: {
-//       page: pages,
-//       limit: size,
-//       total,
-//       unread,
-//     },
-//   };
-//   return data;
-// };
-
-// const adminReadNotification = async () => {
-//   const result = await Notification.updateMany(
-//     { type: 'ADMIN' },
-//     { read: true }
-//   );
-//   return result;
-// };
-
-// const deleteAllNotifications = async () => {
-//   const result = await Notification.deleteMany({});
-//   return result;
-// };
-
-// export const NotificationService = {
-//   getNotificationToDb,
-//   readNotification,
-//   adminNotification,
-//   adminReadNotification,
-//   deleteAllNotifications,
-// };

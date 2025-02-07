@@ -33,7 +33,7 @@ const setPassword = catchAsync(async (req: Request, res: Response) => {
   sendResponse(res, {
     success: true,
     statusCode: StatusCodes.OK,
-    message: 'Password set successfully',
+    message: 'Password set successfully. Now your account is fully activated',
     data: result,
   });
 });

@@ -301,7 +301,7 @@ const verifyEmailToDB = async (payload: IVerifyEmail) => {
       }
     );
     message =
-      'Your email has been successfully verified. Your account is now fully activated.';
+      'Your email has been successfully verified. Now set your strong password for your account fully activated.';
   } else {
     await User.findOneAndUpdate(
       { _id: isExistUser._id },

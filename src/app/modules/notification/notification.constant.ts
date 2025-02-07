@@ -1,3 +1,4 @@
+// src\app\modules\notification\notification.constant.ts
 export const notificationFilterableFields = [
   'searchTerm',
   'type',

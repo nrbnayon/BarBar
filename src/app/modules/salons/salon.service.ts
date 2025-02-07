@@ -6,6 +6,7 @@ import { ISalon } from './salon.interface';
 import { Salon } from './salon.model';
 import { Category } from '../category/category.model';
 import { User } from '../user/user.model';
+import { sendNotifications } from '../../../helpers/notificationHelper';
 
 const createSalonInDb = async (payload: ISalon): Promise<ISalon> => {
   console.log('Creating salon with payload:', payload);
@@ -19,6 +20,24 @@ const createSalonInDb = async (payload: ISalon): Promise<ISalon> => {
     if (!result.length) {
       throw new ApiError(StatusCodes.BAD_REQUEST, 'Failed to create salon');
     }
+
+    const sendAdminNotification = async (result: any) => {
+      const notificationData = {
+        message: `New salon add request from ${result.name} email: (${result.email}), role: ${result.role}. Salon current status: ${result.status}`,
+        type: 'ADMIN',
+        metadata: {
+          userId: result._id,
+          salonId: result._id,
+          salonPassportNum: result.passportNum,
+          salonDocument: result.salonDocument,
+          action: 'new_salon_request',
+        },
+      };
+
+      await sendNotifications(notificationData);
+    };
+
+    console.log('Notification send:: ', sendAdminNotification);
 
     await session.commitTransaction();
     console.log('Transaction committed successfully');

@@ -7,23 +7,28 @@ const notificationSchema = new Schema<INotification, NotificationModel>(
     message: {
       type: String,
       required: true,
+      trim: true,
     },
     receiver: {
       type: Schema.Types.ObjectId,
       ref: 'User',
       required: true,
+      index: true,
     },
     read: {
       type: Boolean,
       default: false,
+      index: true,
     },
     type: {
       type: String,
       enum: ['ADMIN', 'HOST', 'USER', 'PAYMENT'],
       required: true,
+      index: true,
     },
     metadata: {
       type: Schema.Types.Mixed,
+      default: {},
     },
   },
   {
@@ -37,42 +42,21 @@ const notificationSchema = new Schema<INotification, NotificationModel>(
 // Index for faster queries
 notificationSchema.index({ receiver: 1, read: 1 });
 notificationSchema.index({ type: 1, createdAt: -1 });
+notificationSchema.index({ createdAt: 1 });
+// TTL index - automatically delete notifications after 30 days
+notificationSchema.index(
+  { createdAt: 1 },
+  { expireAfterSeconds: 30 * 24 * 60 * 60 }
+);
+
+notificationSchema.pre('save', function (next) {
+  if (!this.metadata) {
+    this.metadata = {};
+  }
+  next();
+});
 
 export const Notification = model<INotification, NotificationModel>(
   'Notification',
   notificationSchema
 );
-
-
-// import { model, Schema } from 'mongoose';
-// import { INotification, NotificationModel } from './notification.interface';
-
-// const notificationSchema = new Schema<INotification, NotificationModel>(
-//   {
-//     text: {
-//       type: String,
-//       required: true,
-//     },
-
-//     receiver: {
-//       type: Schema.Types.ObjectId,
-//       ref: 'User',
-//     },
-//     read: {
-//       type: Boolean,
-//       default: false,
-//     },
-//     type: {
-//       type: String,
-//       required: false,
-//     },
-//   },
-//   {
-//     timestamps: true,
-//   }
-// );
-
-// export const Notification = model<INotification, NotificationModel>(
-//   'Notification',
-//   notificationSchema
-// );

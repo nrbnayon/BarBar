@@ -13,7 +13,7 @@ router.post(
   '/create',
   fileUploadHandler(),
 
-  auth(USER_ROLES.HOST, USER_ROLES.ADMIN),
+  auth(USER_ROLES.HOST),
   (req: Request, res: Response, next: NextFunction) => {
     try {
       const user = req.user;
@@ -69,7 +69,7 @@ router.patch(
 
 router.get(
   '/all',
-  auth(USER_ROLES.ADMIN, USER_ROLES.USER, USER_ROLES.HOST),
+  auth(USER_ROLES.ADMIN, USER_ROLES.USER),
   SalonController.getAllSalons
 );
 

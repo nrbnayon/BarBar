@@ -1,7 +1,7 @@
 // src\app\modules\user\user.service.ts
 import { StatusCodes } from 'http-status-codes';
 import { JwtPayload, Secret } from 'jsonwebtoken';
-import { SortOrder } from 'mongoose';
+import mongoose, { SortOrder } from 'mongoose';
 import bcrypt from 'bcrypt';
 import { USER_ROLES } from '../../../enums/user';
 import ApiError from '../../../errors/ApiError';
@@ -16,64 +16,8 @@ import unlinkFile from '../../../shared/unlinkFile';
 import { logger } from '../../../shared/logger';
 import config from '../../../config';
 import { jwtHelper } from '../../../helpers/jwtHelper';
-
-// const createUserFromDb = async (payload: IUser) => {
-//   // payload.role = USER_ROLES.USER;
-//   console.log('Getting into createUserFromDb function', payload);
-//   try {
-//     const result = await User.create(payload);
-
-//     console.log('User created', result);
-
-//     if (!result) {
-//       throw new ApiError(
-//         StatusCodes.BAD_REQUEST,
-//         'OOPS! Registration failed! Please try again'
-//       );
-//     }
-
-//     const otp = generateOTP();
-//     const emailValues = {
-//       name: result.name,
-//       otp,
-//       email: result.email,
-//     };
-
-//     const accountEmailTemplate = emailTemplate.createAccount(emailValues);
-//     emailHelper.sendEmail(accountEmailTemplate);
-
-//     const authentication = {
-//       oneTimeCode: otp,
-//       expireAt: new Date(Date.now() + 3 * 60000),
-//     };
-
-//     const updatedUser = await User.findOneAndUpdate(
-//       { _id: result._id },
-//       { $set: { authentication } },
-//       { new: true }
-//     );
-
-//     if (!updatedUser) {
-//       throw new ApiError(StatusCodes.NOT_FOUND, 'User not found for update');
-//     }
-
-//     if (result.status === 'active') {
-//       const data = {
-//         text: `Registered successfully, ${result.name}`,
-//         type: 'ADMIN',
-//       };
-
-//       await sendNotifications(data);
-//     }
-
-//     return { email: result.email };
-//   } catch (error) {
-//     throw new ApiError(
-//       StatusCodes.INTERNAL_SERVER_ERROR,
-//       'OOPS! Email already exists! Please try with different email'
-//     );
-//   }
-// };
+import { NotificationService } from '../notification/notification.service';
+import { INotification } from '../notification/notification.interface';
 
 const createUserFromDb = async (payload: IUser) => {
   const existingUser = await User.findOne({ email: payload.email });
@@ -85,65 +29,63 @@ const createUserFromDb = async (payload: IUser) => {
   }
 
   try {
-    if (!payload.role) {
-      payload.role = USER_ROLES.USER;
-    }
-    console.log('Get user payload::', payload);
+    const session = await mongoose.startSession();
+    let result: any;
 
-    if (!payload.password) {
-      payload.password = '12345678';
-    }
+    await session.withTransaction(async () => {
+      if (!payload.role) payload.role = USER_ROLES.USER;
+      if (!payload.password) payload.password = '12345678';
 
-    const result = await User.create(payload);
+      result = await User.create([payload], { session });
+      result = result[0];
 
-    if (!result) {
-      throw new ApiError(
-        StatusCodes.BAD_REQUEST,
-        'Failed to create user account. Please try again.'
-      );
-    }
+      if (!result) {
+        throw new ApiError(
+          StatusCodes.BAD_REQUEST,
+          'Failed to create user account. Please try again.'
+        );
+      }
 
-    const otp = generateOTP();
-    const emailValues = {
-      name: result.name,
-      otp,
-      email: result.email,
-    };
+      console.log('User created successfully::', result);
 
-    const accountEmailTemplate = emailTemplate.createAccount(emailValues);
-    await emailHelper.sendEmail(accountEmailTemplate);
-
-    const authentication = {
-      oneTimeCode: otp,
-      expireAt: new Date(Date.now() + 3 * 60000),
-    };
-
-    const updatedUser = await User.findOneAndUpdate(
-      { _id: result._id },
-      {
-        $set: {
-          authentication,
-          status: 'pending',
-          verified: false,
-        },
-      },
-      { new: true }
-    );
-
-    if (!updatedUser) {
-      throw new ApiError(
-        StatusCodes.INTERNAL_SERVER_ERROR,
-        'Failed to update user authentication details'
-      );
-    }
-
-    if (result.status === 'active') {
-      const data = {
-        text: `New user registered: ${result.name}`,
-        type: 'ADMIN',
+      // Generate and send OTP
+      const otp = generateOTP();
+      const emailValues = {
+        name: result.name,
+        otp,
+        email: result.email,
       };
-      await sendNotifications(data);
-    }
+
+      const accountEmailTemplate = emailTemplate.createAccount(emailValues);
+      await emailHelper.sendEmail(accountEmailTemplate);
+
+      // Update user authentication details
+      const authentication = {
+        oneTimeCode: otp,
+        expireAt: new Date(Date.now() + 3 * 60000),
+      };
+
+      const updatedUser = await User.findOneAndUpdate(
+        { _id: result._id },
+        {
+          $set: {
+            authentication,
+            status: 'pending',
+            verified: false,
+          },
+        },
+        { new: true, session }
+      );
+
+      if (!updatedUser) {
+        throw new ApiError(
+          StatusCodes.INTERNAL_SERVER_ERROR,
+          'Failed to update user authentication details'
+        );
+      }
+    });
+
+    await session.endSession();
 
     return {
       email: result.email,
@@ -154,7 +96,6 @@ const createUserFromDb = async (payload: IUser) => {
   } catch (error) {
     if (error instanceof Error) {
       const mongoError = error as any;
-
       if (mongoError.code === 11000) {
         throw new ApiError(
           StatusCodes.CONFLICT,
@@ -164,7 +105,6 @@ const createUserFromDb = async (payload: IUser) => {
     }
 
     logger.error('User creation error:', error);
-
     throw new ApiError(
       StatusCodes.INTERNAL_SERVER_ERROR,
       'Failed to create user account. Please try again later.'
@@ -193,31 +133,83 @@ const setPassword = async (payload: SetPasswordPayload) => {
     Number(config.bcrypt_salt_rounds)
   );
 
-  const updatedUser = await User.findByIdAndUpdate(
-    user._id,
-    {
-      password: hashedPassword,
-      address,
-      status: 'active',
-    },
-    { new: true }
-  ).select('-password');
+  const session = await mongoose.startSession();
+  let updatedUser;
 
-  const accessToken = jwtHelper.createToken(
-    {
-      id: user._id,
-      role: user.role,
-      email: user.email,
-      name: user.name,
-    },
-    config.jwt.jwt_secret as Secret,
-    config.jwt.jwt_expire_in as string
-  );
+  try {
+    await session.withTransaction(async () => {
+      // Update user with password and set status to active
+      updatedUser = await User.findByIdAndUpdate(
+        user._id,
+        {
+          password: hashedPassword,
+          address,
+          status: 'active',
+        },
+        { new: true, session }
+      ).select('-password');
 
-  return {
-    accessToken,
-    data: updatedUser,
-  };
+      if (!updatedUser) {
+        throw new ApiError(
+          StatusCodes.INTERNAL_SERVER_ERROR,
+          'Failed to update user'
+        );
+      }
+
+      // Send admin notifications since the user registration is now complete
+      const adminUsers = await User.find({ role: USER_ROLES.ADMIN }).select(
+        '_id'
+      );
+
+      // Create notifications for each admin
+      const notificationPromises = adminUsers.map(admin => {
+        const notificationData: Partial<INotification> = {
+          message: `New ${user.role.toLowerCase()}, Name: ${user.name}, Email: (${
+            user.email
+          }) has completed registration.`,
+          type: 'ADMIN',
+          receiver: admin._id,
+          metadata: {
+            userId: user._id,
+            userEmail: user.email,
+            userName: user.name,
+            userRole: user.role,
+            action: `new_${user.role.toLowerCase()}_registration_completed`,
+          },
+        };
+        return sendNotifications(notificationData); // send notification using socketIO or other notification system
+        // return NotificationService.createNotification(notificationData);
+      });
+
+      await Promise.all(notificationPromises);
+    });
+
+    await session.endSession();
+
+    // Generate access token after successful password set
+    const accessToken = jwtHelper.createToken(
+      {
+        id: user._id,
+        role: user.role,
+        email: user.email,
+        name: user.name,
+      },
+      config.jwt.jwt_secret as Secret,
+      config.jwt.jwt_expire_in as string
+    );
+
+    return {
+      accessToken,
+      data: updatedUser,
+    };
+  } catch (error) {
+    await session.endSession();
+    logger.error('Set password error:', error);
+    throw new ApiError(
+      StatusCodes.INTERNAL_SERVER_ERROR,
+      'Failed to set password. Please try again later.'
+    );
+  }
 };
 
 const getAllUsers = async (query: Record<string, unknown>) => {
