@@ -77,7 +77,6 @@ const salonSchema = new Schema<ISalon, SalonModel>(
     image: {
       type: String,
       default: '',
-      required: true,
     },
 
     address: { type: locationSchema },
@@ -126,7 +125,7 @@ salonSchema.pre('save', async function (next) {
   if (isExist) {
     throw new ApiError(
       StatusCodes.BAD_REQUEST,
-      'Salon already exists with this passport number!'
+      'Salon already exists with this salon register number!'
     );
   }
   next();

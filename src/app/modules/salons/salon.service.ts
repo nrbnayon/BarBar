@@ -127,7 +127,7 @@ const completeSalonRegistration = async (
 
     // Send notification to admin
     const notificationData = {
-      message: `New salon registration completed by ${salonOwner.name} (${salonOwner.email}). Awaiting approval.`,
+      message: `New salon approval request from ${salonOwner.name}, email: (${salonOwner.email}), role: ${salonOwner.role}. Salon current status: ${result.status}. Awaiting approval.`,
       type: 'ADMIN',
       metadata: {
         hostId: result.host,
@@ -136,7 +136,7 @@ const completeSalonRegistration = async (
         salonPassportNum: result.passportNum,
         doc: result.doc,
         remarks: result.remarks,
-        action: 'new_salon_registration_completed',
+        action: 'new_salon_registration_request',
       },
     };
 

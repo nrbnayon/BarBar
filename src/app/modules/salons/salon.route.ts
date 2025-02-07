@@ -5,7 +5,7 @@ import auth from '../../middlewares/auth';
 import fileUploadHandler from '../../middlewares/fileUploadHandler';
 import { SalonController } from './salon.controller';
 import { SalonValidation } from './salon.validation';
-import getFilePath from '../../../shared/getFilePath';
+import getFilePath, { getFilePathMultiple } from '../../../shared/getFilePath';
 import validateRequest from '../../middlewares/validateRequest';
 const router = express.Router();
 
@@ -56,12 +56,12 @@ router.post(
       };
 
       if (req.files) {
-        const docPath = getFilePath(req.files, 'doc');
+        const docPath = getFilePathMultiple(req.files, 'doc', 'doc');
+        console.log('Get salon document path:', docPath);
         if (docPath) {
-          salonData.doc = docPath;
+          salonData.doc = docPath[0];
         }
       }
-
       const validatedData =
         SalonValidation.initialSalonZodSchema.parse(salonData);
       req.body = validatedData;
@@ -103,7 +103,7 @@ router.post(
 router.patch(
   '/update/:id',
   fileUploadHandler(),
-  auth(USER_ROLES.HOST, USER_ROLES.ADMIN),
+  auth(USER_ROLES.HOST),
   async (req: Request, res: Response, next: NextFunction) => {
     try {
       let updateSalonData = { ...req.body };

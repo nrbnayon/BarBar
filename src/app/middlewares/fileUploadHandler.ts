@@ -88,13 +88,22 @@ const fileUploadHandler = () => {
           );
         }
       } else if (file.fieldname === 'doc') {
-        if (file.mimetype === 'application/pdf') {
+        if (
+          file.mimetype === 'application/pdf' ||
+          file.mimetype === 'application/msword' ||
+          file.mimetype ===
+            'application/vnd.openxmlformats-officedocument.wordprocessingml.document' ||
+          file.mimetype === 'image/jpeg' ||
+          file.mimetype === 'image/png' ||
+          file.mimetype === 'image/webp' ||
+          file.mimetype === 'image/jpg'
+        ) {
           cb(null, true);
         } else {
           cb(
             new ApiError(
               StatusCodes.BAD_REQUEST,
-              'Only PDF files are supported'
+              'Only .PDF, .docx or Image .jpeg, .png, .jpg .webp files are supported'
             )
           );
         }
@@ -119,7 +128,7 @@ const fileUploadHandler = () => {
     },
   }).fields([
     { name: 'image', maxCount: 3 },
-    { name: 'images', maxCount: 10 },
+    { name: 'images', maxCount: 5 },
     { name: 'media', maxCount: 3 },
     { name: 'doc', maxCount: 3 },
   ]);

@@ -37,7 +37,7 @@ const completeSalonZodSchema = z.object({
   name: z
     .string()
     .min(3, { message: 'Salon name must be at least 3 characters' }),
-  image: z.string().min(1, { message: 'Salon image is required' }),
+  image: z.string().min(1, { message: 'Salon image is required' }).optional(),
   address: locationSchema.optional(),
   phone: z.string().min(1).optional(),
   category: z.string().optional(),
