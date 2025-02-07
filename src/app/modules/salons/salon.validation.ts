@@ -61,6 +61,7 @@ const updateSalonZodSchema = z.object({
     .enum(['active', 'inactive', 'pending', 'rejected'])
     .default('pending'),
   remarks: z.string().optional(),
+  rating: z.coerce.number().min(1).optional(),
 });
 
 const updateSalonStatusZodSchema = z.object({

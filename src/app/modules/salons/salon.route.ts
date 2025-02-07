@@ -124,6 +124,8 @@ router.patch(
   }
 );
 
+router.get('/my-salon', auth(USER_ROLES.HOST), SalonController.getMySalon);
+
 router.get(
   '/all',
   auth(USER_ROLES.ADMIN, USER_ROLES.USER),

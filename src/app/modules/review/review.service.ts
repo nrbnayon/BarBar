@@ -2,6 +2,7 @@
 import { StatusCodes } from 'http-status-codes';
 import ApiError from '../../../errors/ApiError';
 import { Product } from '../product/product.model';
+import mongoose from 'mongoose';
 import { Service } from '../services/services.model';
 import {
   IReview,
@@ -12,13 +13,14 @@ import {
   Rating,
 } from './review.interface';
 import { Review } from './review.model';
-import mongoose from 'mongoose';
+import { Salon } from '../salons/salon.model';
 
 const createReview = async (payload: Partial<IReview>): Promise<IReview> => {
   // Check if user has already reviewed this item
   const existingReview = await Review.findOne({
     user: payload.user,
     $or: [{ product: payload.product }, { service: payload.service }],
+    status: 'active',
   });
 
   if (existingReview) {
@@ -26,6 +28,31 @@ const createReview = async (payload: Partial<IReview>): Promise<IReview> => {
       StatusCodes.BAD_REQUEST,
       'You have already reviewed this item'
     );
+  }
+
+  // Verify product/service exists and is active
+  if (payload.product) {
+    const product = await Product.findOne({
+      _id: payload.product,
+      status: 'active',
+    });
+    if (!product) {
+      throw new ApiError(
+        StatusCodes.NOT_FOUND,
+        'Product not found or is inactive'
+      );
+    }
+  } else if (payload.service) {
+    const service = await Service.findOne({
+      _id: payload.service,
+      status: 'active',
+    });
+    if (!service) {
+      throw new ApiError(
+        StatusCodes.NOT_FOUND,
+        'Service not found or is inactive'
+      );
+    }
   }
 
   const session = await mongoose.startSession();
@@ -62,19 +89,46 @@ const createReview = async (payload: Partial<IReview>): Promise<IReview> => {
 };
 
 const updateProductRating = async (productId: string, session: any) => {
-  const reviews = await Review.find({ product: productId, status: 'active' });
+  const reviews = await Review.find({
+    product: productId,
+    status: 'active',
+  });
+
   const totalRating = reviews.reduce((sum, review) => sum + review.rating, 0);
   const averageRating = reviews.length > 0 ? totalRating / reviews.length : 0;
+  const roundedRating = Math.round(averageRating * 10) / 10;
+
+  const product = await Product.findById(productId);
+  if (!product) {
+    throw new ApiError(StatusCodes.NOT_FOUND, 'Product not found');
+  }
 
   await Product.findByIdAndUpdate(
     productId,
     {
-      rating: Math.round(averageRating * 10) / 10,
+      rating: roundedRating,
       reviewCount: reviews.length,
+    },
+    { session, new: true }
+  );
+
+  // Update salon's overall rating
+  const allSalonProducts = await Product.find({ salon: product.salon });
+  const salonRating =
+    allSalonProducts.reduce((sum, prod) => sum + (Number(prod.rating) || 0), 0) /
+    allSalonProducts.length;
+
+  await Salon.findByIdAndUpdate(
+    product.salon,
+    {
+      rating: Math.round(salonRating * 10) / 10,
     },
     { session }
   );
 };
+
+
+
 
 const updateServiceRating = async (serviceId: string, session: any) => {
   const reviews = await Review.find({ service: serviceId, status: 'active' });

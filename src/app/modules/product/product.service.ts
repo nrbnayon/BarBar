@@ -12,26 +12,17 @@ const createProduct = async (payload: IProduct): Promise<IProduct> => {
   try {
     session.startTransaction();
 
-    // Check if salon exists and is active
+    // Check if salon exists, is active, and belongs to the host
     const salon = await Salon.findOne({
       _id: payload.salon,
+      host: payload.host,
       status: 'active',
     });
 
     if (!salon) {
-      throw new ApiError(StatusCodes.NOT_FOUND, 'Salon not found or inactive');
-    }
-
-    // Check if user is the salon host
-    const isHost = await User.findOne({
-      _id: payload.host,
-      role: 'HOST',
-    });
-
-    if (!isHost) {
       throw new ApiError(
         StatusCodes.FORBIDDEN,
-        'User is not authorized to create products'
+        'Salon not found, inactive, or you are not authorized to create products for this salon'
       );
     }
 
@@ -55,6 +46,9 @@ const createProduct = async (payload: IProduct): Promise<IProduct> => {
     session.endSession();
   }
 };
+
+
+
 
 const getAllProducts = async (
   filters: ProductFilters,

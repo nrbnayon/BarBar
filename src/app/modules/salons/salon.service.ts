@@ -266,6 +266,33 @@ const getSalonById = async (id: string): Promise<ISalon | null> => {
   return result[0] || null;
 };
 
+const getMySalonFromDB = async (id: string): Promise<ISalon | null> => {
+  const result = await Salon.aggregate([
+    { $match: { host: new mongoose.Types.ObjectId(id) } },
+    {
+      $lookup: {
+        from: 'users',
+        localField: 'host',
+        foreignField: '_id',
+        as: 'host',
+      },
+    },
+    {
+      $lookup: {
+        from: 'categories',
+        localField: 'category',
+        foreignField: '_id',
+        as: 'category',
+      },
+    },
+    { $unwind: '$host' },
+    { $unwind: '$category' },
+  ]);
+
+  console.log('Salon found:', result[0] ? 'Yes' : 'No');
+  return result[0] || null;
+};
+
 const getSalonsByCategory = async (categoryId: string) => {
   console.log('Getting salons by category ID:', categoryId);
 
@@ -283,14 +310,6 @@ const updateSalon = async (
   payload: Partial<ISalon>,
   salonId: string | undefined = undefined
 ): Promise<ISalon | null> => {
-  console.log(
-    'Updating salon for host:',
-    hostId,
-    salonId,
-    'Payload: ',
-    payload
-  );
-
   if (!salonId) {
     throw new ApiError(StatusCodes.BAD_REQUEST, 'Salon ID is required');
   }
@@ -332,6 +351,13 @@ const updateSalonStatus = async (
     throw new ApiError(StatusCodes.NOT_FOUND, 'Salon not found');
   }
 
+  const statusMessages: Record<typeof status, string> = {
+    active: 'approved and activated',
+    inactive: 'marked as inactive',
+    pending: 'placed under review',
+    rejected: 'rejected after review',
+  };
+
   const result = await Salon.findByIdAndUpdate(
     salonId,
     { status, remarks: remarks || '' },
@@ -350,13 +376,6 @@ const updateSalonStatus = async (
     console.warn(`Warning: Salon owner not found for salon ID ${salonId}`);
   }
 
-  const statusMessages: Record<typeof status, string> = {
-    active: 'approved and activated',
-    inactive: 'marked as inactive',
-    pending: 'placed under review',
-    rejected: 'rejected after review',
-  };
-
   const notificationMessage = `Your salon has been ${statusMessages[status]} by the admin after document verification.`;
 
   const notificationData = {
@@ -364,7 +383,8 @@ const updateSalonStatus = async (
     type: 'HOST',
     receiver: result.host,
     metadata: {
-      remarks: remarks || 'No additional remarks provided.',
+      remarks:
+        remarks || notificationMessage || 'No additional remarks provided.',
       action:
         status === 'active' ? 'accepted_your_salon' : 'updated_salon_status',
     },
@@ -561,6 +581,7 @@ export const SalonService = {
   // createSalonInDb,
   registerSalonInDb,
   completeSalonRegistration,
+  getMySalonFromDB,
   getAllSalons,
   getSalonById,
   getSalonsByCategory,

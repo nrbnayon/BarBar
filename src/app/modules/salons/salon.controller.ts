@@ -84,6 +84,19 @@ const getSalonById = catchAsync(async (req: Request, res: Response) => {
   });
 });
 
+const getMySalon = catchAsync(async (req: Request, res: Response) => {
+  const hostId = req.user.id;
+  console.log('Getting salon by ID:', hostId);
+  const result = await SalonService.getMySalonFromDB(hostId);
+
+  sendResponse(res, {
+    success: true,
+    statusCode: StatusCodes.OK,
+    message: 'Salon retrieved successfully',
+    data: result,
+  });
+});
+
 const getSalonsByCategory = catchAsync(async (req: Request, res: Response) => {
   const { categoryId } = req.params;
   console.log('Getting salons by category ID:', categoryId);
@@ -184,6 +197,7 @@ const getGenderBasedSalons = catchAsync(async (req: Request, res: Response) => {
 
 export const SalonController = {
   // createSalon,
+  getMySalon,
   registerSalon,
   completeSalonRegistration,
   getAllSalons,

@@ -1,7 +1,38 @@
 // src/app/modules/product/product.interface.ts
-import { Model, Types } from 'mongoose';
+import { Model, Types, Document, Query } from 'mongoose';
 
-export type IProduct = {
+export interface ReviewComment {
+  id: string;
+  user: {
+    id: string;
+    name: string;
+  };
+  rating: number;
+  comment: string;
+  createdAt: Date;
+}
+
+export interface RatingDistribution {
+  five: number;
+  four: number;
+  three: number;
+  two: number;
+  one: number;
+}
+
+export interface RatingStats {
+  average: number;
+  total: number;
+  distribution: RatingDistribution;
+  recentReviews: ReviewComment[];
+}
+
+export interface IPopulatedUser {
+  _id: Types.ObjectId;
+  name: string;
+}
+
+export interface IProduct {
   salonName: string;
   name: string;
   images: string[];
@@ -12,11 +43,11 @@ export type IProduct = {
   host: Types.ObjectId;
   gender: 'male' | 'female' | 'both';
   status: 'active' | 'inactive';
-  rating?: number;
+  rating?: RatingStats;
   reviewCount?: number;
   createdAt?: Date;
   updatedAt?: Date;
-};
+}
 
 export type ProductFilters = {
   searchTerm?: string;
@@ -29,6 +60,6 @@ export type ProductFilters = {
   minRating?: number;
 };
 
-export type ProductModel = {
+export interface ProductModel extends Model<IProduct> {
   isProductExists(id: string): Promise<IProduct | null>;
-} & Model<IProduct>;
+}

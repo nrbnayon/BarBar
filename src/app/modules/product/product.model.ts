@@ -1,4 +1,5 @@
 // src/app/modules/product/product.model.ts
+
 import { Schema, model } from 'mongoose';
 import { IProduct, ProductModel } from './product.interface';
 import ApiError from '../../../errors/ApiError';

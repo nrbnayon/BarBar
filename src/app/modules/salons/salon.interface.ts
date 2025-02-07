@@ -35,6 +35,7 @@ export type ISalon = {
   category: Types.ObjectId;
   remarks: string;
   statusUpdateHistory?: StatusUpdateHistory[];
+  rating?: number;
   createdAt?: Date;
   updatedAt?: Date;
 };
