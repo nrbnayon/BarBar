@@ -2,55 +2,149 @@
 import { StatusCodes } from 'http-status-codes';
 import mongoose, { SortOrder } from 'mongoose';
 import ApiError from '../../../errors/ApiError';
-import { ISalon } from './salon.interface';
+import { DEFAULT_BUSINESS_HOURS, ISalon } from './salon.interface';
 import { Salon } from './salon.model';
 import { Category } from '../category/category.model';
 import { User } from '../user/user.model';
 import { sendNotifications } from '../../../helpers/notificationHelper';
 import { logger } from '../../../shared/logger';
 
-const createSalonInDb = async (payload: ISalon): Promise<ISalon> => {
+// const createSalonInDb = async (payload: ISalon): Promise<ISalon> => {
+//   const session = await mongoose.startSession();
+
+//   try {
+//     session.startTransaction();
+//     console.log('Transaction started');
+
+//     const result = await Salon.create([payload], { session });
+
+//     if (!result.length) {
+//       throw new ApiError(StatusCodes.BAD_REQUEST, 'Failed to create salon');
+//     }
+
+//     const salonOwner = await User.findById(payload.host);
+//     if (!salonOwner) {
+//       throw new ApiError(StatusCodes.NOT_FOUND, 'Salon owner not found');
+//     }
+
+//     const sendAdminNotification = async (result: any, salonOwner: any) => {
+//       const notificationData = {
+//         message: `New salon add request from ${salonOwner.name}, email: (${salonOwner.email}), role: ${salonOwner.role}. Salon current status: ${result.status}`,
+//         type: 'ADMIN',
+//         metadata: {
+//           hostId: result.host,
+//           hostName: salonOwner.name,
+//           salonId: result._id,
+//           salonPassportNum: result.passportNum,
+//           doc: result.doc,
+//           remarks: result.remarks,
+//           action: 'new_salon_add_request',
+//         },
+//       };
+//       await sendNotifications(notificationData);
+//     };
+
+//     await sendAdminNotification(result[0], salonOwner);
+//     await session.commitTransaction();
+//     logger.info('Transaction committed successfully');
+//     return result[0];
+//   } catch (error) {
+//     await session.abortTransaction();
+//     logger.error('Transaction aborted:', error);
+//     throw error;
+//   } finally {
+//     await session.endSession();
+//   }
+// };
+
+const registerSalonInDb = async (payload: Partial<ISalon>): Promise<ISalon> => {
   const session = await mongoose.startSession();
 
   try {
     session.startTransaction();
-    console.log('Transaction started');
 
-    const result = await Salon.create([payload], { session });
+    const result = await Salon.create(
+      [
+        {
+          ...payload,
+          status: 'pending',
+          remarks: 'Initial registration',
+        },
+      ],
+      { session }
+    );
 
     if (!result.length) {
-      throw new ApiError(StatusCodes.BAD_REQUEST, 'Failed to create salon');
+      throw new ApiError(StatusCodes.BAD_REQUEST, 'Failed to register salon');
     }
 
-    const salonOwner = await User.findById(payload.host);
+    await session.commitTransaction();
+    return result[0];
+  } catch (error) {
+    await session.abortTransaction();
+    throw error;
+  } finally {
+    await session.endSession();
+  }
+};
+
+const completeSalonRegistration = async (
+  salonId: string,
+  payload: Partial<ISalon>
+): Promise<ISalon | null> => {
+  const session = await mongoose.startSession();
+
+  try {
+    session.startTransaction();
+
+    const salon = await Salon.findById(salonId);
+    if (!salon) {
+      throw new ApiError(StatusCodes.NOT_FOUND, 'Salon not found');
+    }
+
+    // Set default business hours if not provided
+    if (!payload.businessHours || payload.businessHours.length === 0) {
+      payload.businessHours = DEFAULT_BUSINESS_HOURS;
+    }
+
+    const result = await Salon.findByIdAndUpdate(
+      salonId,
+      { ...payload },
+      { new: true, session }
+    ).populate(['host', 'category']);
+
+    if (!result) {
+      throw new ApiError(
+        StatusCodes.BAD_REQUEST,
+        'Failed to complete salon registration'
+      );
+    }
+
+    const salonOwner = await User.findById(result.host);
     if (!salonOwner) {
       throw new ApiError(StatusCodes.NOT_FOUND, 'Salon owner not found');
     }
 
-    const sendAdminNotification = async (result: any, salonOwner: any) => {
-      const notificationData = {
-        message: `New salon add request from ${salonOwner.name}, email: (${salonOwner.email}), role: ${salonOwner.role}. Salon current status: ${result.status}`,
-        type: 'ADMIN',
-        metadata: {
-          hostId: result.host,
-          hostName: salonOwner.name,
-          salonId: result._id,
-          salonPassportNum: result.passportNum,
-          salonDocument: result.salonDocument,
-          remarks: result.remarks,
-          action: 'new_salon_add_request',
-        },
-      };
-      await sendNotifications(notificationData);
+    // Send notification to admin
+    const notificationData = {
+      message: `New salon registration completed by ${salonOwner.name} (${salonOwner.email}). Awaiting approval.`,
+      type: 'ADMIN',
+      metadata: {
+        hostId: result.host,
+        hostName: salonOwner.name,
+        salonId: result._id,
+        salonPassportNum: result.passportNum,
+        doc: result.doc,
+        remarks: result.remarks,
+        action: 'new_salon_registration_completed',
+      },
     };
 
-    await sendAdminNotification(result[0], salonOwner);
+    await sendNotifications(notificationData);
     await session.commitTransaction();
-    logger.info('Transaction committed successfully');
-    return result[0];
+    return result;
   } catch (error) {
     await session.abortTransaction();
-    logger.error('Transaction aborted:', error);
     throw error;
   } finally {
     await session.endSession();
@@ -464,7 +558,9 @@ const getGenderBasedSalons = async (
 };
 
 export const SalonService = {
-  createSalonInDb,
+  // createSalonInDb,
+  registerSalonInDb,
+  completeSalonRegistration,
   getAllSalons,
   getSalonById,
   getSalonsByCategory,

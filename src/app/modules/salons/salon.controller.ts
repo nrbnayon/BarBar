@@ -5,23 +5,58 @@ import catchAsync from '../../../shared/catchAsync';
 import sendResponse from '../../../shared/sendResponse';
 import { SalonService } from './salon.service';
 
-const createSalon = catchAsync(
+const registerSalon = catchAsync(
   async (req: Request, res: Response, next: NextFunction) => {
     try {
-      console.log('Creating salon with body:', req.body);
-      const result = await SalonService.createSalonInDb(req.body);
+      const result = await SalonService.registerSalonInDb(req.body);
       sendResponse(res, {
         success: true,
         statusCode: StatusCodes.OK,
-        message: 'Salon created successfully! Please wait for admin approval.',
+        message:
+          'Salon registered successfully. Please complete the registration with additional details.',
         data: result,
       });
     } catch (error) {
-      console.error('Error creating salon:', error);
       next(error);
     }
   }
 );
+
+const completeSalonRegistration = catchAsync(
+  async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const { id } = req.params;
+      const result = await SalonService.completeSalonRegistration(id, req.body);
+      sendResponse(res, {
+        success: true,
+        statusCode: StatusCodes.OK,
+        message:
+          'Salon registration completed successfully! Please wait for admin approval.',
+        data: result,
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
+);
+
+// const createSalon = catchAsync(
+//   async (req: Request, res: Response, next: NextFunction) => {
+//     try {
+//       console.log('Creating salon with body:', req.body);
+//       const result = await SalonService.createSalonInDb(req.body);
+//       sendResponse(res, {
+//         success: true,
+//         statusCode: StatusCodes.OK,
+//         message: 'Salon created successfully! Please wait for admin approval.',
+//         data: result,
+//       });
+//     } catch (error) {
+//       console.error('Error creating salon:', error);
+//       next(error);
+//     }
+//   }
+// );
 
 const getAllSalons = catchAsync(async (req: Request, res: Response) => {
   console.log('Getting all salons with query:', req.query);
@@ -148,7 +183,9 @@ const getGenderBasedSalons = catchAsync(async (req: Request, res: Response) => {
 });
 
 export const SalonController = {
-  createSalon,
+  // createSalon,
+  registerSalon,
+  completeSalonRegistration,
   getAllSalons,
   getSalonById,
   getSalonsByCategory,

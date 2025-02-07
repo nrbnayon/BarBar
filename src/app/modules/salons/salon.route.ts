@@ -9,10 +9,43 @@ import getFilePath from '../../../shared/getFilePath';
 import validateRequest from '../../middlewares/validateRequest';
 const router = express.Router();
 
-router.post(
-  '/create',
-  fileUploadHandler(),
+// router.post(
+//   '/create',
+//   fileUploadHandler(),
 
+//   auth(USER_ROLES.HOST),
+//   (req: Request, res: Response, next: NextFunction) => {
+//     try {
+//       const user = req.user;
+//       const salonData = {
+//         ...req.body,
+//         host: user.id,
+//       };
+
+//       console.log('Request body:', req.files, salonData);
+
+//       if (req.files) {
+//         const imagePath = getFilePath(req.files, 'images');
+//         if (imagePath) {
+//           salonData.doc = imagePath;
+//           salonData.image = imagePath;
+//         }
+//       }
+
+//       const validatedData =
+//         SalonValidation.createSalonZodSchema.parse(salonData);
+//       req.body = validatedData;
+
+//       return SalonController.createSalon(req, res, next);
+//     } catch (error) {
+//       next(error);
+//     }
+//   }
+// );
+
+router.post(
+  '/register',
+  fileUploadHandler(),
   auth(USER_ROLES.HOST),
   (req: Request, res: Response, next: NextFunction) => {
     try {
@@ -22,21 +55,45 @@ router.post(
         host: user.id,
       };
 
-      console.log('Request body:', req.files, salonData);
+      if (req.files) {
+        const docPath = getFilePath(req.files, 'doc');
+        if (docPath) {
+          salonData.doc = docPath;
+        }
+      }
+
+      const validatedData =
+        SalonValidation.initialSalonZodSchema.parse(salonData);
+      req.body = validatedData;
+
+      return SalonController.registerSalon(req, res, next);
+    } catch (error) {
+      next(error);
+    }
+  }
+);
+
+// Complete salon creation
+router.post(
+  '/complete/:id',
+  fileUploadHandler(),
+  auth(USER_ROLES.HOST),
+  (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const salonData = { ...req.body };
 
       if (req.files) {
-        const imagePath = getFilePath(req.files, 'images');
+        const imagePath = getFilePath(req.files, 'image');
         if (imagePath) {
-          salonData.salonDocument = imagePath;
           salonData.image = imagePath;
         }
       }
 
       const validatedData =
-        SalonValidation.createSalonZodSchema.parse(salonData);
+        SalonValidation.completeSalonZodSchema.parse(salonData);
       req.body = validatedData;
 
-      return SalonController.createSalon(req, res, next);
+      return SalonController.completeSalonRegistration(req, res, next);
     } catch (error) {
       next(error);
     }

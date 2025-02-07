@@ -1,6 +1,5 @@
 // src/app/modules/salons/salon.interface.ts
 import { Model, Types } from 'mongoose';
-import { string } from 'zod';
 
 export type Location = {
   locationName: string;
@@ -24,7 +23,7 @@ export type StatusUpdateHistory = {
 export type ISalon = {
   name: string;
   passportNum: string;
-  salonDocument: string;
+  doc: string;
   address: Location;
   phone: string;
   image: string;
@@ -47,6 +46,16 @@ interface QueryParams extends Record<string, unknown> {
   sortBy?: string;
   sortOrder?: 'asc' | 'desc';
 }
+
+export const DEFAULT_BUSINESS_HOURS = [
+  { day: 'Monday', startTime: '09:00', endTime: '17:00', isOff: false },
+  { day: 'Tuesday', startTime: '09:00', endTime: '17:00', isOff: false },
+  { day: 'Wednesday', startTime: '09:00', endTime: '17:00', isOff: false },
+  { day: 'Thursday', startTime: '09:00', endTime: '17:00', isOff: false },
+  { day: 'Friday', startTime: '09:00', endTime: '17:00', isOff: true },
+  { day: 'Saturday', startTime: '09:00', endTime: '17:00', isOff: false },
+  { day: 'Sunday', startTime: '09:00', endTime: '17:00', isOff: false },
+];
 
 export type SalonModel = {
   isExistSalonById(id: string): Promise<ISalon | null>;

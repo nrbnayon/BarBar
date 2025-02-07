@@ -65,7 +65,7 @@ const salonSchema = new Schema<ISalon, SalonModel>(
       unique: true,
     },
 
-    salonDocument: {
+    doc: {
       type: String,
       default: '',
       required: true,
