@@ -99,7 +99,7 @@ const salonSchema = new Schema<ISalon, SalonModel>(
       type: String,
       default: 'Initial submission',
     },
-    statusUpdateHistory: [statusUpdateHistorySchema],
+    // statusUpdateHistory: [statusUpdateHistorySchema],
     host: {
       type: Schema.Types.ObjectId,
       ref: 'User',

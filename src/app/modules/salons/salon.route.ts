@@ -98,7 +98,7 @@ router.get(
 );
 
 router.patch(
-  '/status/:id',
+  '/admin/status/:id',
   auth(USER_ROLES.ADMIN),
   validateRequest(SalonValidation.updateSalonZodSchema),
   SalonController.updateSalonStatus

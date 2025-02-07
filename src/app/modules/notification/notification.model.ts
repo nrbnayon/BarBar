@@ -12,7 +12,7 @@ const notificationSchema = new Schema<INotification, NotificationModel>(
     receiver: {
       type: Schema.Types.ObjectId,
       ref: 'User',
-      required: true,
+      // required: true,
       index: true,
     },
     read: {

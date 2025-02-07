@@ -7,10 +7,11 @@ import { Salon } from './salon.model';
 import { Category } from '../category/category.model';
 import { User } from '../user/user.model';
 import { sendNotifications } from '../../../helpers/notificationHelper';
+import { logger } from '../../../shared/logger';
 
 const createSalonInDb = async (payload: ISalon): Promise<ISalon> => {
-  console.log('Creating salon with payload:', payload);
   const session = await mongoose.startSession();
+
   try {
     session.startTransaction();
     console.log('Transaction started');
@@ -21,35 +22,38 @@ const createSalonInDb = async (payload: ISalon): Promise<ISalon> => {
       throw new ApiError(StatusCodes.BAD_REQUEST, 'Failed to create salon');
     }
 
-    const sendAdminNotification = async (result: any) => {
+    const salonOwner = await User.findById(payload.host);
+    if (!salonOwner) {
+      throw new ApiError(StatusCodes.NOT_FOUND, 'Salon owner not found');
+    }
+
+    const sendAdminNotification = async (result: any, salonOwner: any) => {
       const notificationData = {
-        message: `New salon add request from ${result.name} email: (${result.email}), role: ${result.role}. Salon current status: ${result.status}`,
+        message: `New salon add request from ${salonOwner.name}, email: (${salonOwner.email}), role: ${salonOwner.role}. Salon current status: ${result.status}`,
         type: 'ADMIN',
         metadata: {
-          userId: result._id,
+          hostId: result.host,
+          hostName: salonOwner.name,
           salonId: result._id,
           salonPassportNum: result.passportNum,
           salonDocument: result.salonDocument,
-          action: 'new_salon_request',
+          remarks: result.remarks,
+          action: 'new_salon_add_request',
         },
       };
-
       await sendNotifications(notificationData);
     };
 
-    console.log('Notification send:: ', sendAdminNotification);
-
+    await sendAdminNotification(result[0], salonOwner);
     await session.commitTransaction();
-    console.log('Transaction committed successfully');
-
+    logger.info('Transaction committed successfully');
     return result[0];
   } catch (error) {
     await session.abortTransaction();
-    console.error('Transaction aborted:', error);
+    logger.error('Transaction aborted:', error);
     throw error;
   } finally {
     await session.endSession();
-    console.log('Session ended');
   }
 };
 
@@ -225,28 +229,55 @@ const updateSalonStatus = async (
   status: 'active' | 'inactive' | 'pending' | 'rejected',
   remarks?: string
 ): Promise<ISalon | null> => {
-  const salon = await Salon.findById(salonId);
+  console.log(
+    `Updating salon status. Salon ID: ${salonId}, New Status: ${status}`
+  );
 
+  const salon = await Salon.findById(salonId);
   if (!salon) {
     throw new ApiError(StatusCodes.NOT_FOUND, 'Salon not found');
   }
 
   const result = await Salon.findByIdAndUpdate(
     salonId,
-    {
-      status,
-      remarks: remarks || '',
-      // statusUpdateHistory: [
-      //   ...(salon.statusUpdateHistory || []),
-      //   {
-      //     status,
-      //     updatedAt: new Date(),
-      //     remarks: remarks || '',
-      //   },
-      // ],
-    },
+    { status, remarks: remarks || '' },
     { new: true }
   ).populate(['host', 'category']);
+
+  if (!result) {
+    throw new ApiError(
+      StatusCodes.INTERNAL_SERVER_ERROR,
+      'Failed to update salon status'
+    );
+  }
+
+  const salonOwner = await User.findById(result.host);
+  if (!salonOwner) {
+    console.warn(`Warning: Salon owner not found for salon ID ${salonId}`);
+  }
+
+  const statusMessages: Record<typeof status, string> = {
+    active: 'approved and activated',
+    inactive: 'marked as inactive',
+    pending: 'placed under review',
+    rejected: 'rejected after review',
+  };
+
+  const notificationMessage = `Your salon has been ${statusMessages[status]} by the admin after document verification.`;
+
+  const notificationData = {
+    message: notificationMessage,
+    type: 'HOST',
+    receiver: result.host,
+    metadata: {
+      remarks: remarks || 'No additional remarks provided.',
+      action:
+        status === 'active' ? 'accepted_your_salon' : 'updated_salon_status',
+    },
+  };
+
+  await sendNotifications(notificationData);
+  console.log('Notification sent to salon owner:', notificationData);
 
   return result;
 };

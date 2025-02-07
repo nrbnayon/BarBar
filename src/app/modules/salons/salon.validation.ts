@@ -33,7 +33,7 @@ const createSalonZodSchema = z.object({
   phone: z.string().min(1).optional(),
   host: z.string().min(15).optional(),
   category: z.string().optional(),
-  gender: z.enum(['male', 'female', 'both']),
+  gender: z.enum(['male', 'female', 'both']).optional(),
   businessHours: z.array(businessHoursSchema).optional(),
   status: z
     .enum(['active', 'inactive', 'pending', 'rejected'])
