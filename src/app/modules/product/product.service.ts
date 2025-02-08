@@ -5,7 +5,6 @@ import ApiError from '../../../errors/ApiError';
 import { IProduct, ProductFilters } from './product.interface';
 import { Product } from './product.model';
 import { Salon } from '../salons/salon.model';
-import { User } from '../user/user.model';
 
 const createProduct = async (payload: IProduct): Promise<IProduct> => {
   const session = await mongoose.startSession();
@@ -26,7 +25,12 @@ const createProduct = async (payload: IProduct): Promise<IProduct> => {
       );
     }
 
-    const result = await Product.create([payload], { session });
+    const productData = {
+      ...payload,
+      ...(payload.salonName === undefined && { salonName: salon.name }),
+    };
+
+    const result = await Product.create([productData], { session });
 
     if (!result.length) {
       throw new ApiError(StatusCodes.BAD_REQUEST, 'Failed to create product');
@@ -46,9 +50,6 @@ const createProduct = async (payload: IProduct): Promise<IProduct> => {
     session.endSession();
   }
 };
-
-
-
 
 const getAllProducts = async (
   filters: ProductFilters,

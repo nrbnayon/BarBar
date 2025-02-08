@@ -18,12 +18,30 @@ const createReviewSchema = z.object({
 });
 
 const updateReviewSchema = z.object({
-  rating: z.number().min(1).max(5).optional(),
-  review: z.string().min(1).optional(),
-  status: z.enum(['active', 'inactive']).optional(),
+  body: z.object({
+    rating: z.number().min(1).max(5).optional(),
+    review: z.string().min(1).optional(),
+    status: z.enum(['active', 'inactive']).optional(),
+  }),
+});
+
+const getReviewsSchema = z.object({
+  query: z.object({
+    product: z.string().optional(),
+    service: z.string().optional(),
+    user: z.string().optional(),
+    status: z.enum(['active', 'inactive']).optional(),
+    startDate: z.string().datetime().optional(),
+    endDate: z.string().datetime().optional(),
+    sortBy: z.enum(['rating', 'createdAt']).optional(),
+    sortOrder: z.enum(['asc', 'desc']).optional(),
+    page: z.string().transform(Number).optional(),
+    limit: z.string().transform(Number).optional(),
+  }),
 });
 
 export const ReviewValidation = {
   createReviewSchema,
   updateReviewSchema,
+  getReviewsSchema,
 };

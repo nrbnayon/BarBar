@@ -38,6 +38,39 @@ const reviewSchema = new Schema<IReview, ReviewModel>(
   }
 );
 
+reviewSchema.index(
+  {
+    user: 1,
+    product: 1,
+    status: 1,
+  },
+  {
+    unique: true,
+    partialFilterExpression: {
+      status: 'active',
+      product: { $exists: true },
+    },
+  }
+);
+
+reviewSchema.index(
+  {
+    user: 1,
+    service: 1,
+    status: 1,
+  },
+  {
+    unique: true,
+    partialFilterExpression: {
+      status: 'active',
+      service: { $exists: true },
+    },
+  }
+);
+
+reviewSchema.index({ createdAt: -1 });
+reviewSchema.index({ rating: -1 });
+
 reviewSchema.pre('save', function (next) {
   if (!this.product && !this.service) {
     throw new Error(

@@ -9,7 +9,6 @@ const productSchema = new Schema<IProduct, ProductModel>(
   {
     salonName: {
       type: String,
-      trim: true,
     },
     name: {
       type: String,

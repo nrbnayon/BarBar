@@ -1,7 +1,18 @@
 // src\app\modules\notification\notification.interface.ts
 import { Model, Types } from 'mongoose';
 
-export type NotificationType = 'ADMIN' | 'HOST' | 'USER' | 'PAYMENT';
+export type NotificationType =
+  | 'ADMIN'
+  | 'HOST'
+  | 'USER'
+  | 'PAYMENT'
+  | 'REFUND'
+  | 'SERVICE_REQUEST'
+  | 'SERVICE_ACCEPTED'
+  | 'SERVICE_REJECTED'
+  | 'SERVICE_COMPLETED'
+  | 'SERVICE_CANCELED'
+  | 'REVIEW';
 
 export interface INotification {
   message: string;

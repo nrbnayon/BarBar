@@ -31,6 +31,12 @@ export interface RatingMetadata {
 export interface ReviewResponse {
   data: IReview[];
   meta: RatingMetadata;
+  pagination?: {
+    page: number;
+    limit: number;
+    total: number;
+    totalPages: number;
+  };
 }
 
 export interface ReviewFilters {
@@ -38,6 +44,12 @@ export interface ReviewFilters {
   service?: string;
   user?: string;
   status?: string;
+  startDate?: Date;
+  endDate?: Date;
+  sortBy?: 'rating' | 'createdAt';
+  sortOrder?: 'asc' | 'desc';
+  page?: number;
+  limit?: number;
 }
 
 export type ReviewModel = {

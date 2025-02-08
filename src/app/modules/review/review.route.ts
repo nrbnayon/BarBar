@@ -8,11 +8,10 @@ import { ReviewValidation } from './review.validation';
 
 const router = express.Router();
 
-
-
 router.get(
   '/',
   auth(USER_ROLES.ADMIN, USER_ROLES.USER, USER_ROLES.HOST),
+  validateRequest(ReviewValidation.getReviewsSchema),
   ReviewController.getReviews
 );
 

@@ -4,7 +4,7 @@ const createProductSchema = z.object({
   body: z.object({
     salonName: z.string({
       required_error: 'Salon name is required',
-    }),
+    }).optional(),
     name: z.string({
       required_error: 'Product name is required',
     }),
