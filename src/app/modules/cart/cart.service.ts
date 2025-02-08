@@ -1,5 +1,4 @@
 // src\app\modules\cart\cart.service.ts
-// src\app\modules\cart\cart.service.ts
 import { StatusCodes } from 'http-status-codes';
 import mongoose from 'mongoose';
 import ApiError from '../../../errors/ApiError';
@@ -52,6 +51,7 @@ const addToCart = async (
         [
           {
             user: userId,
+            totalAmount: product.price * quantity,
             items: [
               {
                 product: product._id,
@@ -61,7 +61,6 @@ const addToCart = async (
                 host: product.host,
               },
             ],
-            totalAmount: product.price * quantity,
           },
         ],
         { session }

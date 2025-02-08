@@ -165,6 +165,7 @@ const confirmPayment = async (
     user: userId,
   });
 
+  console.log('Get payment::', payment);
   if (!payment) {
     throw new ApiError(StatusCodes.NOT_FOUND, 'Payment not found');
   }
@@ -266,7 +267,6 @@ export const PaymentService = {
   getHostPayments,
   getAllPaymentsFromDB,
 };
-
 
 // import { StatusCodes } from 'http-status-codes';
 // import Stripe from 'stripe';
@@ -504,7 +504,6 @@ export const PaymentService = {
 
 //   return payments;
 // };
-
 
 // const getUserPayments = async (userId: string): Promise<IPayment[]> => {
 //   return Payment.find({ user: userId })
