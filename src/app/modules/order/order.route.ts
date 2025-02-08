@@ -1,3 +1,4 @@
+// src\app\modules\order\order.route.ts
 import express from 'express';
 import { USER_ROLES } from '../../../enums/user';
 import auth from '../../middlewares/auth';
@@ -14,16 +15,18 @@ router.post(
   OrderController.createOrder
 );
 
-router.get(
-  '/my-orders',
-  auth(USER_ROLES.USER),
-  OrderController.getUserOrders
-);
+router.get('/my-orders', auth(USER_ROLES.USER), OrderController.getUserOrders);
 
 router.get(
   '/host-orders',
   auth(USER_ROLES.HOST),
   OrderController.getHostOrders
+);
+
+router.get(
+  '/confirm-orders',
+  auth(USER_ROLES.HOST),
+  OrderController.confirmSalonPayment
 );
 
 router.get(
@@ -37,6 +40,13 @@ router.patch(
   auth(USER_ROLES.HOST, USER_ROLES.ADMIN),
   validateRequest(OrderValidation.updateOrderStatusSchema),
   OrderController.updateOrderStatus
+);
+
+router.post(
+  '/checkout-cart',
+  auth(USER_ROLES.USER),
+  validateRequest(OrderValidation.checkoutCartSchema),
+  OrderController.checkoutCart
 );
 
 export const OrderRoutes = router;

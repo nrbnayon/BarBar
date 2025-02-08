@@ -1,3 +1,4 @@
+// src\app\modules\order\order.validation.ts
 import { z } from 'zod';
 
 const createOrderSchema = z.object({
@@ -18,12 +19,25 @@ const createOrderSchema = z.object({
 
 const updateOrderStatusSchema = z.object({
   body: z.object({
-    status: z.enum(['pending', 'confirmed', 'completed', 'cancelled', 'refunded']),
+    status: z.enum([
+      'pending',
+      'confirmed',
+      'completed',
+      'cancelled',
+      'refunded',
+    ]),
     salonId: z.string().optional(),
+  }),
+});
+
+const checkoutCartSchema = z.object({
+  body: z.object({
+    paymentMethod: z.enum(['cash', 'visa', 'mastercard', 'paypal']),
   }),
 });
 
 export const OrderValidation = {
   createOrderSchema,
   updateOrderStatusSchema,
+  checkoutCartSchema,
 };

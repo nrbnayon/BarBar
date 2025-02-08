@@ -1,3 +1,4 @@
+// src\app\modules\order\order.controller.ts
 import { Request, Response } from 'express';
 import { StatusCodes } from 'http-status-codes';
 import catchAsync from '../../../shared/catchAsync';
@@ -14,6 +15,25 @@ const createOrder = catchAsync(async (req: Request, res: Response) => {
     success: true,
     statusCode: StatusCodes.CREATED,
     message: 'Order created successfully',
+    data: result,
+  });
+});
+
+const confirmSalonPayment = catchAsync(async (req: Request, res: Response) => {
+  const hostId = req.user.id;
+  const { orderId } = req.params;
+  const { salonId } = req.body;
+
+  const result = await OrderService.confirmSalonPayment(
+    hostId,
+    orderId,
+    salonId
+  );
+
+  sendResponse(res, {
+    success: true,
+    statusCode: StatusCodes.OK,
+    message: 'Order confirmed successfully',
     data: result,
   });
 });
@@ -68,10 +88,26 @@ const updateOrderStatus = catchAsync(async (req: Request, res: Response) => {
   });
 });
 
+const checkoutCart = catchAsync(async (req: Request, res: Response) => {
+  const userId = req.user.id;
+  const { paymentMethod } = req.body;
+
+  const result = await OrderService.createOrderFromCart(userId, paymentMethod);
+
+  sendResponse(res, {
+    success: true,
+    statusCode: StatusCodes.CREATED,
+    message: 'Order created successfully from cart',
+    data: result,
+  });
+});
+
 export const OrderController = {
   createOrder,
   getOrderById,
   getUserOrders,
   getHostOrders,
   updateOrderStatus,
+  checkoutCart,
+  confirmSalonPayment,
 };

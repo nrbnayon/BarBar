@@ -6,13 +6,20 @@ export type PaymentMethod = 'cash' | 'visa' | 'mastercard' | 'paypal';
 
 export type PaymentInfo = {
   method: PaymentMethod;
-  status: 'pending' | 'paid' | 'refunded' | 'failed';
+  status: 'pending' | 'paid' | 'refunded' | 'failed' | 'canceled' ;
   transactionId?: string;
   cardLastFour?: string;
   cardHolderName?: string;
   paymentDate?: Date;
   amount: number;
   currency: string;
+};
+
+export type TimeSlot = {
+  startTime: string;
+  endTime: string;
+  available: boolean;
+  remainingSlots: number;
 };
 
 export type IAppointment = {

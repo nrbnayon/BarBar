@@ -34,6 +34,7 @@ const notificationSchema = new Schema<INotification, NotificationModel>(
         'SERVICE_REJECTED',
         'SERVICE_COMPLETED',
         'SERVICE_CANCELED',
+        'ORDER',
       ],
       required: true,
       index: true,

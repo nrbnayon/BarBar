@@ -12,7 +12,8 @@ export type NotificationType =
   | 'SERVICE_REJECTED'
   | 'SERVICE_COMPLETED'
   | 'SERVICE_CANCELED'
-  | 'REVIEW';
+  | 'REVIEW'
+  | 'ORDER';
 
 export interface INotification {
   message: string;
