@@ -36,7 +36,7 @@ const productSchema = new Schema<IProduct, ProductModel>(
     salon: {
       type: Schema.Types.ObjectId,
       ref: 'Salon',
-      required: true,
+      // required: true,
     },
     host: {
       type: Schema.Types.ObjectId,

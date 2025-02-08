@@ -2,9 +2,11 @@ import { z } from 'zod';
 
 const createProductSchema = z.object({
   body: z.object({
-    salonName: z.string({
-      required_error: 'Salon name is required',
-    }).optional(),
+    salonName: z
+      .string({
+        required_error: 'Salon name is required',
+      })
+      .optional(),
     name: z.string({
       required_error: 'Product name is required',
     }),
@@ -22,9 +24,11 @@ const createProductSchema = z.object({
       })
       .min(0),
     gender: z.enum(['male', 'female', 'both']),
-    salon: z.string({
-      required_error: 'Salon ID is required',
-    }),
+    salon: z
+      .string({
+        required_error: 'Salon ID is required',
+      })
+      .optional(),
     host: z.string().optional(),
     status: z.enum(['active', 'inactive']).default('active'),
   }),

@@ -1,10 +1,25 @@
 // src\app\modules\cart\cart.service.ts
+// src\app\modules\cart\cart.service.ts
 import { StatusCodes } from 'http-status-codes';
 import mongoose from 'mongoose';
 import ApiError from '../../../errors/ApiError';
 import { Product } from '../product/product.model';
 import { Cart } from './cart.model';
 import { ICart } from './cart.interface';
+
+const calculateCartSummary = (cart: ICart) => {
+  const totalItems = cart.items.length;
+  const totalQuantity = cart.items.reduce(
+    (sum, item) => sum + item.quantity,
+    0
+  );
+  const totalAmount = cart.items.reduce(
+    (sum, item) => sum + item.price * item.quantity,
+    0
+  );
+
+  return { totalItems, totalQuantity, totalAmount };
+};
 
 const addToCart = async (
   userId: string,
@@ -61,20 +76,17 @@ const addToCart = async (
 
       cart = newCart[0];
     } else {
-      // Check if product already exists in cart
       const existingItemIndex = cart.items.findIndex(
         item => item.product.toString() === productId
       );
 
       if (existingItemIndex > -1) {
-        // Instead of updating quantity, throw an error
         throw new ApiError(
           StatusCodes.BAD_REQUEST,
-          'Product already exists in cart. Please use update quantity feature to modify existing items.'
+          'Product already exists in cart. Please update quantity.'
         );
       }
 
-      // Add new item if product doesn't exist
       cart.items.push({
         product: product._id,
         quantity,
@@ -83,11 +95,8 @@ const addToCart = async (
         host: product.host,
       });
 
-      // Recalculate total amount
-      cart.totalAmount = cart.items.reduce(
-        (total, item) => total + item.price * item.quantity,
-        0
-      );
+      const { totalAmount } = calculateCartSummary(cart);
+      cart.totalAmount = totalAmount;
 
       await cart.save({ session });
     }
@@ -107,7 +116,10 @@ const addToCart = async (
       );
     }
 
-    return populatedCart;
+    return {
+      ...populatedCart.toObject(),
+      ...calculateCartSummary(populatedCart),
+    };
   } catch (error) {
     await session.abortTransaction();
     throw error;
@@ -122,7 +134,7 @@ const getCart = async (userId: string): Promise<ICart | null> => {
     .populate('items.salon', 'name address')
     .populate('items.host', 'name email');
 
-  return cart;
+  return cart ? { ...cart.toObject(), ...calculateCartSummary(cart) } : null;
 };
 
 const updateCartItem = async (
@@ -138,7 +150,6 @@ const updateCartItem = async (
   const itemIndex = cart.items.findIndex(
     item => item.product.toString() === productId
   );
-
   if (itemIndex === -1) {
     throw new ApiError(StatusCodes.NOT_FOUND, 'Product not found in cart');
   }
@@ -156,10 +167,8 @@ const updateCartItem = async (
   }
 
   cart.items[itemIndex].quantity = quantity;
-  cart.totalAmount = cart.items.reduce(
-    (total, item) => total + item.price * item.quantity,
-    0
-  );
+  const { totalAmount } = calculateCartSummary(cart);
+  cart.totalAmount = totalAmount;
 
   const updatedCart = await cart.save();
   const populatedCart = await Cart.findById(updatedCart._id).populate([
@@ -175,7 +184,10 @@ const updateCartItem = async (
     );
   }
 
-  return populatedCart;
+  return {
+    ...populatedCart.toObject(),
+    ...calculateCartSummary(populatedCart),
+  };
 };
 
 const removeCartItem = async (
@@ -188,11 +200,8 @@ const removeCartItem = async (
   }
 
   cart.items = cart.items.filter(item => item.product.toString() !== productId);
-
-  cart.totalAmount = cart.items.reduce(
-    (total, item) => total + item.price * item.quantity,
-    0
-  );
+  const { totalAmount } = calculateCartSummary(cart);
+  cart.totalAmount = totalAmount;
 
   const updatedCart = await cart.save();
   const populatedCart = await Cart.findById(updatedCart._id).populate([
@@ -208,7 +217,10 @@ const removeCartItem = async (
     );
   }
 
-  return populatedCart;
+  return {
+    ...populatedCart.toObject(),
+    ...calculateCartSummary(populatedCart),
+  };
 };
 
 const clearCart = async (userId: string): Promise<void> => {
@@ -268,8 +280,16 @@ export const CartService = {
 //         [
 //           {
 //             user: userId,
-//             items: [],
-//             totalAmount: 0,
+//             items: [
+//               {
+//                 product: product._id,
+//                 quantity,
+//                 price: product.price,
+//                 salon: product.salon,
+//                 host: product.host,
+//               },
+//             ],
+//             totalAmount: product.price * quantity,
 //           },
 //         ],
 //         { session }
@@ -283,15 +303,21 @@ export const CartService = {
 //       }
 
 //       cart = newCart[0];
-//     }
-
-//     const existingItemIndex = cart.items.findIndex(
-//       item => item.product.toString() === productId
-//     );
-
-//     if (existingItemIndex > -1) {
-//       cart.items[existingItemIndex].quantity += quantity;
 //     } else {
+//       // Check if product already exists in cart
+//       const existingItemIndex = cart.items.findIndex(
+//         item => item.product.toString() === productId
+//       );
+
+//       if (existingItemIndex > -1) {
+//         // Instead of updating quantity, throw an error
+//         throw new ApiError(
+//           StatusCodes.BAD_REQUEST,
+//           'Product already exists in cart. Please use update quantity feature to modify existing items.'
+//         );
+//       }
+
+//       // Add new item if product doesn't exist
 //       cart.items.push({
 //         product: product._id,
 //         quantity,
@@ -299,14 +325,16 @@ export const CartService = {
 //         salon: product.salon,
 //         host: product.host,
 //       });
+
+//       // Recalculate total amount
+//       cart.totalAmount = cart.items.reduce(
+//         (total, item) => total + item.price * item.quantity,
+//         0
+//       );
+
+//       await cart.save({ session });
 //     }
 
-//     cart.totalAmount = cart.items.reduce(
-//       (total, item) => total + item.price * item.quantity,
-//       0
-//     );
-
-//     await cart.save({ session });
 //     await session.commitTransaction();
 
 //     const populatedCart = await Cart.findById(cart._id).populate([

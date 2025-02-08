@@ -13,10 +13,12 @@ const createProduct = async (payload: IProduct): Promise<IProduct> => {
 
     // Check if salon exists, is active, and belongs to the host
     const salon = await Salon.findOne({
-      _id: payload.salon,
+      // _id: payload.salon,
       host: payload.host,
       status: 'active',
     });
+
+    console.log("Get salon result:", salon)
 
     if (!salon) {
       throw new ApiError(
@@ -28,6 +30,7 @@ const createProduct = async (payload: IProduct): Promise<IProduct> => {
     const productData = {
       ...payload,
       ...(payload.salonName === undefined && { salonName: salon.name }),
+      ...(payload.salon === undefined && { salon: salon._id }),
     };
 
     const result = await Product.create([productData], { session });
