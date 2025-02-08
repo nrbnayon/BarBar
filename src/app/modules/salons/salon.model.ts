@@ -79,8 +79,6 @@ const salonSchema = new Schema<ISalon, SalonModel>(
       default: '',
     },
     
-    rating: { type: Number, default: 0 },
-
     address: { type: locationSchema },
 
     gender: {
@@ -100,7 +98,14 @@ const salonSchema = new Schema<ISalon, SalonModel>(
       type: String,
       default: 'Initial submission',
     },
-    // statusUpdateHistory: [statusUpdateHistorySchema],
+
+    ratings: {
+      overall: { type: Number, default: 0 },
+      products: { type: Number, default: 0 },
+      services: { type: Number, default: 0 },
+      totalReviews: { type: Number, default: 0 }
+    },
+
     host: {
       type: Schema.Types.ObjectId,
       ref: 'User',

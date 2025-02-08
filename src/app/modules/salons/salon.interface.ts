@@ -20,6 +20,13 @@ export type StatusUpdateHistory = {
   remarks?: string;
 };
 
+export interface ISalonRating {
+  overall: number;
+  products: number;
+  services: number;
+  totalReviews: number;
+}
+
 export type ISalon = {
   name: string;
   passportNum: string;
@@ -35,7 +42,7 @@ export type ISalon = {
   category: Types.ObjectId;
   remarks: string;
   statusUpdateHistory?: StatusUpdateHistory[];
-  rating?: number;
+  ratings?: ISalonRating;
   createdAt?: Date;
   updatedAt?: Date;
 };

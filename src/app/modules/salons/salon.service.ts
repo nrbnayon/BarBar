@@ -239,9 +239,66 @@ const getAllSalons = async (query: Record<string, unknown>) => {
   };
 };
 
+// const getSalonById = async (id: string): Promise<ISalon | null> => {
+//   const result = await Salon.aggregate([
+//     { $match: { _id: new mongoose.Types.ObjectId(id) } },
+//     {
+//       $lookup: {
+//         from: 'users',
+//         localField: 'host',
+//         foreignField: '_id',
+//         as: 'host',
+//       },
+//     },
+//     {
+//       $lookup: {
+//         from: 'categories',
+//         localField: 'category',
+//         foreignField: '_id',
+//         as: 'category',
+//       },
+//     },
+//     { $unwind: '$host' },
+//     { $unwind: '$category' },
+//   ]);
+
+//   console.log('Salon found:', result[0] ? 'Yes' : 'No');
+//   return result[0] || null;
+// };
+
 const getSalonById = async (id: string): Promise<ISalon | null> => {
   const result = await Salon.aggregate([
     { $match: { _id: new mongoose.Types.ObjectId(id) } },
+    {
+      $lookup: {
+        from: 'products',
+        let: { salonId: '$_id' },
+        pipeline: [
+          {
+            $match: {
+              $expr: { $eq: ['$salon', '$$salonId'] },
+              status: 'active',
+            },
+          },
+        ],
+        as: 'products',
+      },
+    },
+    {
+      $lookup: {
+        from: 'services',
+        let: { salonId: '$_id' },
+        pipeline: [
+          {
+            $match: {
+              $expr: { $eq: ['$salon', '$$salonId'] },
+              status: 'active',
+            },
+          },
+        ],
+        as: 'services',
+      },
+    },
     {
       $lookup: {
         from: 'users',
@@ -260,9 +317,26 @@ const getSalonById = async (id: string): Promise<ISalon | null> => {
     },
     { $unwind: '$host' },
     { $unwind: '$category' },
+    {
+      $project: {
+        _id: 1,
+        name: 1,
+        address: 1,
+        phone: 1,
+        image: 1,
+        bannerImage: 1,
+        gender: 1,
+        businessHours: 1,
+        status: 1,
+        host: 1,
+        category: 1,
+        ratings: 1,
+        productsCount: { $size: '$products' },
+        servicesCount: { $size: '$services' },
+      },
+    },
   ]);
 
-  console.log('Salon found:', result[0] ? 'Yes' : 'No');
   return result[0] || null;
 };
 

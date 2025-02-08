@@ -15,71 +15,81 @@ import {
 import { Review } from './review.model';
 import { Salon } from '../salons/salon.model';
 
+const updateSalonRatings = async (salonId: string, session: any) => {
+  // Get all products and services for the salon
+  const products = await Product.find({ salon: salonId, status: 'active' });
+  const services = await Service.find({ salon: salonId, status: 'active' });
+
+  // Calculate product ratings
+  const productRatings = products.reduce(
+    (sum, prod) => sum + (Number(prod.rating) || 0),
+    0
+  );
+  const avgProductRating = products.length
+    ? productRatings / products.length
+    : 0;
+
+  // Calculate service ratings
+  const serviceRatings = services.reduce(
+    (sum, serv) => sum + (serv.rating || 0),
+    0
+  );
+  const avgServiceRating = services.length
+    ? serviceRatings / services.length
+    : 0;
+
+  // Calculate overall rating
+  const totalItems = products.length + services.length;
+  const overallRating = totalItems
+    ? (productRatings + serviceRatings) / totalItems
+    : 0;
+
+  // Calculate total reviews
+  const totalReviews =
+    products.reduce((sum, prod) => sum + (prod.reviewCount || 0), 0) +
+    services.reduce((sum, serv) => sum + (serv.reviewCount || 0), 0);
+
+  // Update salon ratings
+  await Salon.findByIdAndUpdate(
+    salonId,
+    {
+      ratings: {
+        overall: Math.round(overallRating * 10) / 10,
+        products: Math.round(avgProductRating * 10) / 10,
+        services: Math.round(avgServiceRating * 10) / 10,
+        totalReviews,
+      },
+    },
+    { session }
+  );
+};
+
+// Update the createReview function
 const createReview = async (payload: Partial<IReview>): Promise<IReview> => {
-  // Check if user has already reviewed this item
-  const existingReview = await Review.findOne({
-    user: payload.user,
-    $or: [{ product: payload.product }, { service: payload.service }],
-    status: 'active',
-  });
-
-  if (existingReview) {
-    throw new ApiError(
-      StatusCodes.BAD_REQUEST,
-      'You have already reviewed this item'
-    );
-  }
-
-  // Verify product/service exists and is active
-  if (payload.product) {
-    const product = await Product.findOne({
-      _id: payload.product,
-      status: 'active',
-    });
-    if (!product) {
-      throw new ApiError(
-        StatusCodes.NOT_FOUND,
-        'Product not found or is inactive'
-      );
-    }
-  } else if (payload.service) {
-    const service = await Service.findOne({
-      _id: payload.service,
-      status: 'active',
-    });
-    if (!service) {
-      throw new ApiError(
-        StatusCodes.NOT_FOUND,
-        'Service not found or is inactive'
-      );
-    }
-  }
-
   const session = await mongoose.startSession();
   try {
     session.startTransaction();
 
+    // Create the review
     const review = await Review.create([payload], { session });
 
-    if (!review.length) {
-      throw new ApiError(StatusCodes.BAD_REQUEST, 'Failed to create review');
-    }
-
-    // Update product or service rating
+    // Update product/service rating
     if (payload.product) {
       await updateProductRating(payload.product.toString(), session);
+      const product = await Product.findById(payload.product);
+      if (product) {
+        await updateSalonRatings(product.salon.toString(), session);
+      }
     } else if (payload.service) {
       await updateServiceRating(payload.service.toString(), session);
+      const service = await Service.findById(payload.service);
+      if (service) {
+        await updateSalonRatings(service.salon.toString(), session);
+      }
     }
 
     await session.commitTransaction();
-
-    const populatedReview = await Review.findById(review[0]._id)
-      .populate('user', 'name email')
-      .populate('product')
-      .populate('service');
-
-    return populatedReview!;
+    return review[0];
   } catch (error) {
     await session.abortTransaction();
     throw error;
@@ -126,9 +136,6 @@ const updateProductRating = async (productId: string, session: any) => {
     { session }
   );
 };
-
-
-
 
 const updateServiceRating = async (serviceId: string, session: any) => {
   const reviews = await Review.find({ service: serviceId, status: 'active' });
