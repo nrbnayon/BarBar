@@ -17,6 +17,7 @@ import { USER_ROLES } from '../../../enums/user';
 import { ISalon } from '../salons/salon.interface';
 import { IIncome } from '../income/income.interface';
 import { IncomeService } from '../income/income.service';
+import { sendNotifications } from '../../../helpers/notificationHelper';
 
 const createAppointment = async (
   userId: string,
@@ -389,10 +390,6 @@ const updateAppointmentStatus = async (
     });
     console.log('Current slot count:', currentSlots);
 
-    // Decrease slot count when:
-    // 1. Status changes to completed (service delivered)
-    // 2. Status changes to cancelled (appointment cancelled)
-    // 3. Status changes to no-show (client didn't show up)
     if (
       payload.status === 'completed' ||
       payload.status === 'cancelled' ||
@@ -416,9 +413,6 @@ const updateAppointmentStatus = async (
       }
     }
 
-    // Increase slot count when:
-    // 1. Moving from completed/cancelled/no-show back to confirmed
-    // (e.g., if status was updated by mistake)
     if (
       (appointment.status === 'completed' ||
         appointment.status === 'cancelled' ||
@@ -667,7 +661,54 @@ const confirmCashPayment = async (
       }`,
     };
 
-    await IncomeService.createIncome(incomeData); 
+    await IncomeService.createIncome(incomeData);
+
+    // Send notifications based on who confirmed the payment
+    if (userRole === USER_ROLES.USER) {
+      // If user confirms, notify host and admin
+      await sendNotifications({
+        message: `Payment confirmed by user for appointment ${updatedAppointment?.appointmentId}`,
+        type: 'PAYMENT',
+        receiver: salon.host,
+        metadata: {
+          appointmentId,
+          confirmedBy: userInfo.name,
+          amount: appointment.price,
+        },
+      });
+
+      await sendNotifications({
+        message: `Payment confirmed by user for appointment ${updatedAppointment?.appointmentId}`,
+        type: 'ADMIN', // Notify the admin
+        metadata: {
+          appointmentId,
+          confirmedBy: userInfo.name,
+          amount: appointment.price,
+        },
+      });
+    } else if (userRole === USER_ROLES.HOST) {
+      // If host confirms, notify user and admin
+      await sendNotifications({
+        message: `Payment confirmed by host for appointment ${updatedAppointment?.appointmentId}`,
+        type: 'PAYMENT',
+        receiver: appointmentUser._id,
+        metadata: {
+          appointmentId,
+          confirmedBy: salon.host,
+          amount: appointment.price,
+        },
+      });
+
+      await sendNotifications({
+        message: `Payment confirmed by host for appointment ${updatedAppointment?.appointmentId}`,
+        type: 'ADMIN', 
+        metadata: {
+          appointmentId,
+          confirmedBy: salon.host,
+          amount: appointment.price,
+        },
+      });
+    }
 
     await session.commitTransaction();
     return updatedAppointment;
@@ -678,7 +719,6 @@ const confirmCashPayment = async (
     session.endSession();
   }
 };
-
 
 export const AppointmentService = {
   createAppointment,
