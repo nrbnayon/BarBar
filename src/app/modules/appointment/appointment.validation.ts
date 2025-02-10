@@ -63,31 +63,58 @@ const rescheduleAppointmentZodSchema = z.object({
   }),
 });
 
-const processPaymentZodSchema = z
-  .object({
-    method: z.enum(['cash', 'visa', 'mastercard', 'paypal']),
-    cardNumber: z.string().optional(),
-    cardHolderName: z.string().optional(),
-    expiryDate: z.string().optional(),
-    cvv: z.string().optional(),
-  })
-  .refine(
-    data => {
-      if (data.method !== 'cash') {
-        return (
-          data.cardNumber && data.cardHolderName && data.expiryDate && data.cvv
-        );
+const processPaymentZodSchema = z.object({
+  body: z
+    .object({
+      method: z.enum(['cash', 'visa', 'mastercard', 'paypal']),
+      cardNumber: z.string().optional(),
+      cardHolderName: z.string().optional(),
+      expiryDate: z.string().optional(),
+      cvv: z.string().optional(),
+    })
+    .refine(
+      data => {
+        if (data.method !== 'cash') {
+          return (
+            data.cardNumber &&
+            data.cardHolderName &&
+            data.expiryDate &&
+            data.cvv
+          );
+        }
+        return true;
+      },
+      {
+        message: 'Card details are required for card payments',
       }
-      return true;
-    },
-    {
-      message: 'Card details are required for card payments',
-    }
-  );
+    ),
+});
+
+const confirmCashPaymentSchema = z.object({
+  params: z.object({
+    id: z.string({
+      required_error: 'Appointment ID is required',
+    }),
+  }),
+  body: z.object({
+    status: z.enum(['completed'], {
+      required_error: 'Status must be completed',
+    }),
+    payment: z.object({
+      method: z.enum(['cash'], {
+        required_error: 'Payment method must be cash',
+      }),
+      status: z.enum(['paid'], {
+        required_error: 'Payment status must be paid',
+      }),
+    }),
+  }),
+});
 
 export const AppointmentValidation = {
   createAppointmentZodSchema,
   updateAppointmentZodSchema,
   rescheduleAppointmentZodSchema,
   processPaymentZodSchema,
+  confirmCashPaymentSchema,
 };

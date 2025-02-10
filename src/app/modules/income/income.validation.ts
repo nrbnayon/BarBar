@@ -12,13 +12,22 @@ const createIncomeSchema = z.object({
     order: z.string({
       required_error: 'Order ID is required',
     }),
+
+    confirmBy: z.object({
+      _id: z.string().optional(),
+      name: z.string().optional(),
+      email: z.string().optional(),
+    }),
+
     type: z.enum(['service', 'product'], {
       required_error: 'Income type is required',
     }),
-    amount: z.number({
-      required_error: 'Amount is required',
-    }).min(0),
-    paymentMethod: z. enum(['cash', 'visa', 'mastercard', 'paypal'], {
+    amount: z
+      .number({
+        required_error: 'Amount is required',
+      })
+      .min(0),
+    paymentMethod: z.enum(['cash', 'visa', 'mastercard', 'paypal'], {
       required_error: 'Payment method is required',
     }),
     transactionDate: z.string().or(z.date()),

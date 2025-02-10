@@ -21,7 +21,7 @@ export interface IPayment {
   amount: number;
   user: Types.ObjectId;
   products: IProductWithQuantity[];
-  paymentMethod: PaymentMethod;
+  paymentMethod?: PaymentMethod;
   cardId?: Types.ObjectId;
   transactionId?: string;
   status: 'pending' | 'completed' | 'failed' | 'cancelled' | 'refunded';

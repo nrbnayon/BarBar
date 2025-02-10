@@ -1,5 +1,6 @@
 // src\app\modules\income\income.interface.ts
 import { Model, Types } from 'mongoose';
+import { PaymentMethod } from '../appointment/appointment.interface';
 
 export type IncomeType = 'service' | 'product';
 export type IncomeStatus = 'pending' | 'paid' | 'cancelled';
@@ -9,12 +10,16 @@ export interface IIncome {
   salon: Types.ObjectId;
   host: Types.ObjectId;
   order: Types.ObjectId;
+  confirmBy: {
+    _id: Types.ObjectId;
+    name: string;
+    email: string;
+  };
   type: IncomeType;
   amount: number;
   status: IncomeStatus;
-  paymentMethod: string;
+  paymentMethod: string | PaymentMethod;
   transactionDate: Date;
-  // bankAccount?: Types.ObjectId;
   remarks?: string;
   createdAt?: Date;
   updatedAt?: Date;

@@ -127,6 +127,22 @@ const processPayment = catchAsync(async (req: Request, res: Response) => {
   });
 });
 
+const confirmCashPayment = catchAsync(async (req: Request, res: Response) => {
+  const result = await AppointmentService.confirmCashPayment(
+    req.params.id,
+    req.user.id,
+    req.user.role,
+    req.body
+  );
+
+  sendResponse(res, {
+    success: true,
+    statusCode: StatusCodes.OK,
+    message: 'Cash payment confirmed successfully',
+    data: result,
+  });
+});
+
 export const AppointmentController = {
   createAppointment,
   getAvailableTimeSlots,
@@ -135,4 +151,5 @@ export const AppointmentController = {
   updateAppointmentStatus,
   rescheduleAppointment,
   processPayment,
+  confirmCashPayment,
 };

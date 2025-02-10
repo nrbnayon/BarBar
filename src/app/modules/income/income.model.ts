@@ -19,6 +19,19 @@ const incomeSchema = new Schema<IIncome, IncomeModel>(
       ref: 'Order',
       required: true,
     },
+
+    confirmBy: {
+      _id: {
+        type: Schema.Types.ObjectId,
+      },
+      name: {
+        type: String,
+      },
+      email: {
+        type: String,
+      },
+    },
+
     type: {
       type: String,
       enum: ['service', 'product'],
@@ -43,6 +56,7 @@ const incomeSchema = new Schema<IIncome, IncomeModel>(
       type: Date,
       required: true,
     },
+
     // bankAccount: {
     //   type: Schema.Types.ObjectId,
     //   ref: 'BankAccount',

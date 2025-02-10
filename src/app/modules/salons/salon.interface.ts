@@ -28,6 +28,7 @@ export interface ISalonRating {
 }
 
 export type ISalon = {
+  _id?: Types.ObjectId;
   name: string;
   passportNum: string;
   doc: string;

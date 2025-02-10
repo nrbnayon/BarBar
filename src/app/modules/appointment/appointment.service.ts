@@ -1,12 +1,22 @@
 // src\app\modules\appointment\appointment.service.ts
 import { StatusCodes } from 'http-status-codes';
 import ApiError from '../../../errors/ApiError';
-import { IAppointment, PaymentMethod, TimeSlot } from './appointment.interface';
+import {
+  IAppointment,
+  IConfirmPaymentPayload,
+  PaymentInfo,
+  PaymentMethod,
+  TimeSlot,
+} from './appointment.interface';
 import { Appointment } from './appointment.model';
 import { Salon } from '../salons/salon.model';
 import mongoose from 'mongoose';
 import { Service } from '../services/services.model';
 import { Income } from '../income/income.model';
+import { USER_ROLES } from '../../../enums/user';
+import { ISalon } from '../salons/salon.interface';
+import { IIncome } from '../income/income.interface';
+import { IncomeService } from '../income/income.service';
 
 const createAppointment = async (
   userId: string,
@@ -192,6 +202,13 @@ const processPayment = async (
     throw new ApiError(StatusCodes.NOT_FOUND, 'Appointment not found');
   }
 
+  if (appointment.status !== 'pending') {
+    throw new ApiError(
+      StatusCodes.BAD_REQUEST,
+      'Can only process payment for pending appointments'
+    );
+  }
+
   let paymentUpdate: any = {
     method: paymentMethod,
     status: 'pending',
@@ -200,10 +217,11 @@ const processPayment = async (
   if (paymentMethod === 'cash') {
     paymentUpdate.status = 'pending';
   } else {
-    if (paymentDetails.cardNumber) {
-      paymentUpdate.cardLastFour = paymentDetails.cardNumber.slice(-4);
-      paymentUpdate.cardHolderName = paymentDetails.cardHolderName;
+    if (!paymentDetails.cardNumber) {
+      throw new ApiError(StatusCodes.BAD_REQUEST, 'Card details are required');
     }
+    paymentUpdate.cardLastFour = paymentDetails.cardNumber.slice(-4);
+    paymentUpdate.cardHolderName = paymentDetails.cardHolderName;
     paymentUpdate.status = 'paid';
     paymentUpdate.transactionId = `TXN${Date.now()}`;
     paymentUpdate.paymentDate = new Date();
@@ -223,6 +241,26 @@ const processPayment = async (
       StatusCodes.INTERNAL_SERVER_ERROR,
       'Failed to process payment'
     );
+  }
+
+  // If payment is completed, create income record
+  if (paymentUpdate.status === 'paid') {
+    const salon = await Salon.findById(result.salon).populate('host');
+    if (!salon) {
+      throw new ApiError(StatusCodes.NOT_FOUND, 'Salon not found');
+    }
+
+    await Income.create({
+      salon: result.salon,
+      host: salon.host,
+      order: result._id,
+      type: 'service',
+      amount: result.price,
+      status: 'paid',
+      paymentMethod,
+      transactionDate: new Date(),
+      remarks: 'Service payment completed',
+    });
   }
 
   return result;
@@ -407,12 +445,14 @@ const updateAppointmentStatus = async (
 
     if (
       payload.status === 'completed' &&
-      appointment.payment.method === 'cash' &&
+      (appointment.payment as PaymentInfo).method === 'cash' &&
       appointment.payment.status !== 'paid'
     ) {
       // Update payment status
       appointment.payment.status = 'paid';
-      appointment.payment.paymentDate = new Date();
+      if ('paymentDate' in appointment.payment) {
+        (appointment.payment as PaymentInfo).paymentDate = new Date();
+      }
 
       const hostOwner = await Salon.findById(appointment.salon).populate(
         'host'
@@ -423,21 +463,6 @@ const updateAppointmentStatus = async (
       }
 
       console.log('Get service provide owner Line 430::', hostOwner);
-
-      // Create income record
-      await Income.create([
-        {
-          salon: appointment.salon,
-          host: hostOwner.host,
-          order: appointment._id,
-          type: 'service',
-          amount: appointment.price,
-          status: 'paid',
-          paymentMethod: 'cash',
-          transactionDate: new Date(),
-          remarks: 'Service payment completed',
-        },
-      ]);
     }
 
     // Verify updated slot count
@@ -550,6 +575,111 @@ const rescheduleAppointment = async (
   return result;
 };
 
+const confirmCashPayment = async (
+  appointmentId: string,
+  userId: string,
+  userRole: string,
+  payload: IConfirmPaymentPayload
+): Promise<IAppointment> => {
+  const appointment = await Appointment.findById(appointmentId)
+    .populate(['service', 'salon'])
+    .populate('user', 'name email');
+
+  if (!appointment) {
+    throw new ApiError(StatusCodes.NOT_FOUND, 'Appointment not found');
+  }
+
+  const salon = appointment.salon as ISalon;
+  const appointmentUser = appointment.user as { _id: mongoose.Types.ObjectId };
+
+  if (
+    (userRole === USER_ROLES.HOST && salon.host.toString() !== userId) ||
+    (userRole === USER_ROLES.USER && appointmentUser._id.toString() !== userId)
+  ) {
+    throw new ApiError(
+      StatusCodes.FORBIDDEN,
+      `Only the ${
+        userRole === USER_ROLES.HOST ? 'salon host' : 'appointment user'
+      } can confirm this payment`
+    );
+  }
+
+  if ((appointment.payment as PaymentInfo).method !== 'cash') {
+    throw new ApiError(
+      StatusCodes.BAD_REQUEST,
+      'This endpoint is only for cash payments'
+    );
+  }
+
+  if (appointment.payment.status === 'paid') {
+    throw new ApiError(
+      StatusCodes.BAD_REQUEST,
+      'Payment has already been confirmed and completed'
+    );
+  }
+
+  const session = await mongoose.startSession();
+
+  try {
+    session.startTransaction();
+
+    const updatedAppointment = await Appointment.findByIdAndUpdate(
+      appointmentId,
+      {
+        $set: {
+          status: payload.status,
+          'payment.status': payload.payment.status,
+          'payment.paymentDate': new Date(),
+          remarks: `Cash payment confirmed by ${
+            userRole === USER_ROLES.HOST ? 'host' : 'user'
+          }`,
+        },
+      },
+      { new: true, session }
+    );
+
+    if (!updatedAppointment) {
+      throw new ApiError(StatusCodes.NOT_FOUND, 'Failed to update appointment');
+    }
+
+    const userInfo = appointment.user as {
+      _id: mongoose.Types.ObjectId;
+      name: string;
+      email: string;
+    };
+
+    const incomeData: IIncome = {
+      salon: salon._id!,
+      host: salon.host,
+      order: appointment._id,
+      confirmBy: {
+        _id: userInfo._id,
+        name: userInfo.name,
+        email: userInfo.email,
+      },
+      type: 'service',
+      amount: appointment.price,
+      status: 'paid',
+      paymentMethod: 'cash',
+      transactionDate: new Date(),
+      remarks: `Cash payment confirmed by ${
+        userRole === USER_ROLES.HOST ? 'host' : 'user'
+      }`,
+    };
+
+    await IncomeService.createIncome(incomeData); 
+
+    await session.commitTransaction();
+    return updatedAppointment;
+  } catch (error) {
+    await session.abortTransaction();
+    throw error;
+  } finally {
+    session.endSession();
+  }
+};
+
+
 export const AppointmentService = {
   createAppointment,
   getAvailableTimeSlots,
@@ -558,4 +688,5 @@ export const AppointmentService = {
   updateAppointmentStatus,
   rescheduleAppointment,
   processPayment,
+  confirmCashPayment,
 };

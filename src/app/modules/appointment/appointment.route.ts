@@ -54,4 +54,10 @@ router.post(
   AppointmentController.processPayment
 );
 
+router.post(
+  '/:id/confirm-cash-payment',
+  auth(USER_ROLES.USER, USER_ROLES.HOST),
+  AppointmentController.confirmCashPayment
+);
+
 export const AppointmentRoutes = router;

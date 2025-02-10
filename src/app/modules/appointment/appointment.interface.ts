@@ -1,12 +1,14 @@
 // src/app/modules/appointment/appointment.interface.ts
 
 import { Model, Types } from 'mongoose';
+import { ISalon } from '../salons/salon.interface';
+import { IPayment } from '../payment/payment.interface';
 
 export type PaymentMethod = 'cash' | 'visa' | 'mastercard' | 'paypal';
 
 export type PaymentInfo = {
   method: PaymentMethod;
-  status: 'pending' | 'paid' | 'refunded' | 'failed' | 'canceled' ;
+  status: 'pending' | 'paid' | 'refunded' | 'failed' | 'canceled';
   transactionId?: string;
   cardLastFour?: string;
   cardHolderName?: string;
@@ -24,15 +26,16 @@ export type TimeSlot = {
 
 export type IAppointment = {
   appointmentId: string;
-  user: Types.ObjectId;
-  service: Types.ObjectId;
-  salon: Types.ObjectId;
+  user: Types.ObjectId | { _id: Types.ObjectId; name: string; email: string };
+  service: Types.ObjectId | any;
+  salon: Types.ObjectId | ISalon;
   appointmentDate: Date;
   startTime: string;
   endTime: string;
   status: 'pending' | 'confirmed' | 'cancelled' | 'completed' | 'no-show';
-  payment: PaymentInfo;
+  payment: PaymentInfo | IPayment;
   notes?: string;
+  remarks?: string;
   cancellationReason?: string;
   reminderSent: boolean;
   rescheduleCount: number;
@@ -64,4 +67,12 @@ export interface AppointmentModel extends Model<IAppointment> {
     increment: boolean
   ): Promise<void>;
   isWithinCancellationWindow(appointmentDate: Date): boolean;
+}
+
+export interface IConfirmPaymentPayload {
+  status: 'pending' | 'confirmed' | 'cancelled' | 'completed' | 'no-show';
+  payment: {
+    method: 'cash' | 'card' | 'online';
+    status: 'pending' | 'paid' | 'refunded' | 'failed' | 'canceled';
+  };
 }
