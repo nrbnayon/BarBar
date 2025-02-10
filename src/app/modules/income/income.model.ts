@@ -1,3 +1,4 @@
+// src/app/modules/income/income.model.ts
 import { Schema, model } from 'mongoose';
 import { IIncome, IncomeModel } from './income.interface';
 
@@ -42,10 +43,10 @@ const incomeSchema = new Schema<IIncome, IncomeModel>(
       type: Date,
       required: true,
     },
-    bankAccount: {
-      type: Schema.Types.ObjectId,
-      ref: 'BankAccount',
-    },
+    // bankAccount: {
+    //   type: Schema.Types.ObjectId,
+    //   ref: 'BankAccount',
+    // },
     remarks: String,
   },
   {

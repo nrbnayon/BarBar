@@ -2,19 +2,42 @@
 import { z } from 'zod';
 
 const createAppointmentZodSchema = z.object({
-  body: z.object({
-    service: z.string(),
-    appointmentDate: z.string().refine(date => new Date(date) > new Date(), {
-      message: 'Appointment date must be in the future',
-    }),
-    startTime: z.string().regex(/^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/, {
-      message: 'Invalid time format. Use 24-hour format (HH:MM)',
-    }),
-    payment: z.object({
-      method: z.enum(['cash', 'visa', 'mastercard', 'paypal']),
-    }),
-    notes: z.string().optional(),
-  }),
+  body: z
+    .object({
+      service: z.string(),
+      appointmentDate: z.string().refine(
+        date => {
+          const appointmentDate = new Date(date);
+          const today = new Date();
+          appointmentDate.setHours(0, 0, 0, 0);
+          today.setHours(0, 0, 0, 0);
+          return appointmentDate >= today;
+        },
+        {
+          message: 'Appointment date cannot be in the past',
+        }
+      ),
+      startTime: z.string().regex(/^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/, {
+        message: 'Invalid time format. Use 24-hour format (HH:MM)',
+      }),
+      payment: z.object({
+        method: z.enum(['cash', 'visa', 'mastercard', 'paypal']),
+      }),
+      notes: z.string().optional(),
+    })
+    .refine(
+      data => {
+        const appointmentDateTime = new Date(data.appointmentDate);
+        const [hours, minutes] = data.startTime.split(':').map(Number);
+        appointmentDateTime.setHours(hours, minutes, 0, 0);
+
+        return appointmentDateTime > new Date();
+      },
+      {
+        message: 'Appointment time must be in the future',
+        path: ['startTime'],
+      }
+    ),
 });
 
 const updateAppointmentZodSchema = z.object({

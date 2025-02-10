@@ -8,6 +8,8 @@ import { Payment } from '../payment/payment.model';
 import { sendNotifications } from '../../../helpers/notificationHelper';
 import { Cart } from '../cart/cart.model';
 import { Product } from '../product/product.model';
+import { IncomeService } from '../income/income.service';
+import { IncomeStatus, IncomeType } from '../income/income.interface';
 
 // const createOrder = async (
 //   userId: string,
@@ -265,6 +267,8 @@ const updateOrderStatus = async (
   return order;
 };
 
+// In order.service.ts
+
 const confirmSalonPayment = async (
   orderId: string,
   salonId: string,
@@ -277,6 +281,13 @@ const confirmSalonPayment = async (
     const order = await Order.findOne({ orderId });
     if (!order) {
       throw new ApiError(StatusCodes.NOT_FOUND, 'Order not found');
+    }
+
+    if (order.paymentMethod !== 'cash') {
+      throw new ApiError(
+        StatusCodes.BAD_REQUEST,
+        'This method is only for cash payments'
+      );
     }
 
     const salonOrder = order.salonOrders.find(
@@ -294,6 +305,23 @@ const confirmSalonPayment = async (
     // Update payment confirmation for this salon
     salonOrder.paymentConfirmed = true;
 
+    // Create income record for this salon's products
+    const productIncome = {
+      salon: salonOrder.salon,
+      host: salonOrder.host,
+      order: order._id,
+      type: 'product' as IncomeType,
+      amount: salonOrder.amount,
+      status: 'paid' as IncomeStatus,
+      paymentMethod: 'cash',
+      transactionDate: new Date(),
+      remarks: `Product order payment completed`,
+    };
+
+    const newIncome = await IncomeService.createIncome(productIncome);
+
+    console.log('New product income:', newIncome);
+
     // Check if all salon payments are confirmed
     const allPaymentsConfirmed = order.salonOrders.every(
       so => so.paymentConfirmed
@@ -304,16 +332,20 @@ const confirmSalonPayment = async (
 
       // Update product quantities
       for (const item of order.items) {
-        await Product.findByIdAndUpdate(item.product, {
-          $inc: { quantity: -(item.quantity || 1) },
-        });
+        await Product.findByIdAndUpdate(
+          item.product,
+          {
+            $inc: { quantity: -(item.quantity || 1) },
+          },
+          { session }
+        );
       }
 
       // Notify user that order is confirmed
       await sendNotifications({
         userId: order.user.toString(),
         message: `Order #${order.orderId} has been confirmed. All payments received.`,
-        type: 'ORDER_CONFIRMATION',
+        type: 'PAYMENT',
       });
     }
 
@@ -328,6 +360,70 @@ const confirmSalonPayment = async (
     session.endSession();
   }
 };
+
+// const confirmSalonPayment = async (
+//   orderId: string,
+//   salonId: string,
+//   hostId: string
+// ): Promise<IOrder> => {
+//   const session = await mongoose.startSession();
+//   try {
+//     session.startTransaction();
+
+//     const order = await Order.findOne({ orderId });
+//     if (!order) {
+//       throw new ApiError(StatusCodes.NOT_FOUND, 'Order not found');
+//     }
+
+//     const salonOrder = order.salonOrders.find(
+//       so => so.salon.toString() === salonId && so.host.toString() === hostId
+//     );
+
+//     if (!salonOrder) {
+//       throw new ApiError(StatusCodes.NOT_FOUND, 'Salon order not found');
+//     }
+
+//     if (salonOrder.paymentConfirmed) {
+//       throw new ApiError(StatusCodes.BAD_REQUEST, 'Payment already confirmed');
+//     }
+
+//     // Update payment confirmation for this salon
+//     salonOrder.paymentConfirmed = true;
+
+//     // Check if all salon payments are confirmed
+//     const allPaymentsConfirmed = order.salonOrders.every(
+//       so => so.paymentConfirmed
+//     );
+//     if (allPaymentsConfirmed) {
+//       order.paymentStatus = 'completed';
+//       order.status = 'confirmed';
+
+//       // Update product quantities
+//       for (const item of order.items) {
+//         await Product.findByIdAndUpdate(item.product, {
+//           $inc: { quantity: -(item.quantity || 1) },
+//         });
+//       }
+
+//       // Notify user that order is confirmed
+//       await sendNotifications({
+//         userId: order.user.toString(),
+//         message: `Order #${order.orderId} has been confirmed. All payments received.`,
+//         type: 'ORDER_CONFIRMATION',
+//       });
+//     }
+
+//     await order.save({ session });
+//     await session.commitTransaction();
+
+//     return order;
+//   } catch (error) {
+//     await session.abortTransaction();
+//     throw error;
+//   } finally {
+//     session.endSession();
+//   }
+// };
 
 const createOrderFromCart = async (
   userId: string,
@@ -508,87 +604,86 @@ const createOrderFromCart = async (
     await session.commitTransaction();
     return order[0];
 
-//  if (paymentMethod === 'cash') {
-//    for (const salonOrder of salonOrders) {
-//      const hostId = salonOrder.host.toString();
+    //  if (paymentMethod === 'cash') {
+    //    for (const salonOrder of salonOrders) {
+    //      const hostId = salonOrder.host.toString();
 
-//      // Get detailed product info for this salon's items
-//      const orderDetails = cart.items
-//        .filter(
-//          item => item.salon._id.toString() === salonOrder.salon.toString()
-//        )
-//        .map(item => ({
-//          productName: item.product.name,
-//          quantity: item.quantity,
-//          price: item.price,
-//          totalPrice: item.price * item.quantity,
-//          productImages: item.product.images,
-//        }));
+    //      // Get detailed product info for this salon's items
+    //      const orderDetails = cart.items
+    //        .filter(
+    //          item => item.salon._id.toString() === salonOrder.salon.toString()
+    //        )
+    //        .map(item => ({
+    //          productName: item.product.name,
+    //          quantity: item.quantity,
+    //          price: item.price,
+    //          totalPrice: item.price * item.quantity,
+    //          productImages: item.product.images,
+    //        }));
 
-//      await sendNotifications({
-//        userId: salonOrder.host.toString(),
-//        message: `New cash order #${orderId} received - Amount: $${salonOrder.amount}. Please confirm payment receipt.`,
-//        type: 'ORDER',
-//        receiver: hostId,
-//        metadata: {
-//          orderId,
-//          salonId: salonOrder.salon.toString(),
-//          salonName: cart.items.find(
-//            item => item.salon._id.toString() === salonOrder.salon.toString()
-//          )?.salon.name,
-//          amount: salonOrder.amount,
-//          items: orderDetails,
-//          customerInfo: {
-//            userId: userId,
-//            orderDate: new Date(),
-//            paymentMethod: paymentMethod,
-//          },
-//        },
-//      });
-//    }
-//  } else {
-//    for (const salonOrder of salonOrders) {
-//      const hostId = salonOrder.host.toString();
+    //      await sendNotifications({
+    //        userId: salonOrder.host.toString(),
+    //        message: `New cash order #${orderId} received - Amount: $${salonOrder.amount}. Please confirm payment receipt.`,
+    //        type: 'ORDER',
+    //        receiver: hostId,
+    //        metadata: {
+    //          orderId,
+    //          salonId: salonOrder.salon.toString(),
+    //          salonName: cart.items.find(
+    //            item => item.salon._id.toString() === salonOrder.salon.toString()
+    //          )?.salon.name,
+    //          amount: salonOrder.amount,
+    //          items: orderDetails,
+    //          customerInfo: {
+    //            userId: userId,
+    //            orderDate: new Date(),
+    //            paymentMethod: paymentMethod,
+    //          },
+    //        },
+    //      });
+    //    }
+    //  } else {
+    //    for (const salonOrder of salonOrders) {
+    //      const hostId = salonOrder.host.toString();
 
-//      // Get detailed product info for this salon's items
-//      const orderDetails = cart.items
-//        .filter(
-//          item => item.salon._id.toString() === salonOrder.salon.toString()
-//        )
-//        .map(item => ({
-//          productName: item.product.name,
-//          quantity: item.quantity,
-//          price: item.price,
-//          totalPrice: item.price * item.quantity,
-//          productImages: item.product.images,
-//        }));
+    //      // Get detailed product info for this salon's items
+    //      const orderDetails = cart.items
+    //        .filter(
+    //          item => item.salon._id.toString() === salonOrder.salon.toString()
+    //        )
+    //        .map(item => ({
+    //          productName: item.product.name,
+    //          quantity: item.quantity,
+    //          price: item.price,
+    //          totalPrice: item.price * item.quantity,
+    //          productImages: item.product.images,
+    //        }));
 
-//      await sendNotifications({
-//        userId: salonOrder.host.toString(),
-//        message: `New order #${orderId} received - Amount: $${salonOrder.amount}`,
-//        type: 'ORDER',
-//        receiver: hostId,
-//        metadata: {
-//          orderId,
-//          salonId: salonOrder.salon.toString(),
-//          salonName: cart.items.find(
-//            item => item.salon._id.toString() === salonOrder.salon.toString()
-//          )?.salon.name,
-//          amount: salonOrder.amount,
-//          items: orderDetails,
-//          customerInfo: {
-//            userId: userId,
-//            orderDate: new Date(),
-//            paymentMethod: paymentMethod,
-//          },
-//        },
-//      });
-//    }
-//  }
+    //      await sendNotifications({
+    //        userId: salonOrder.host.toString(),
+    //        message: `New order #${orderId} received - Amount: $${salonOrder.amount}`,
+    //        type: 'ORDER',
+    //        receiver: hostId,
+    //        metadata: {
+    //          orderId,
+    //          salonId: salonOrder.salon.toString(),
+    //          salonName: cart.items.find(
+    //            item => item.salon._id.toString() === salonOrder.salon.toString()
+    //          )?.salon.name,
+    //          amount: salonOrder.amount,
+    //          items: orderDetails,
+    //          customerInfo: {
+    //            userId: userId,
+    //            orderDate: new Date(),
+    //            paymentMethod: paymentMethod,
+    //          },
+    //        },
+    //      });
+    //    }
+    //  }
 
-//  await session.commitTransaction();
-//  return order[0];
-
+    //  await session.commitTransaction();
+    //  return order[0];
   } catch (error) {
     await session.abortTransaction();
     throw error;

@@ -1,3 +1,4 @@
+// src\app\modules\income\income.controller.ts
 import { Request, Response } from 'express';
 import { StatusCodes } from 'http-status-codes';
 import catchAsync from '../../../shared/catchAsync';
@@ -58,15 +59,32 @@ const generateIncomeReport = catchAsync(async (req: Request, res: Response) => {
   });
 });
 
+const generateDetailedIncomeReport = catchAsync(
+  async (req: Request, res: Response) => {
+    const hostId = req.user.id;
+    const { period, startDate, endDate } = req.query;
+
+    const result = await IncomeService.generateDetailedIncomeReport(
+      hostId,
+      period as any,
+      startDate ? new Date(startDate as string) : undefined,
+      endDate ? new Date(endDate as string) : undefined
+    );
+
+    sendResponse(res, {
+      success: true,
+      statusCode: StatusCodes.OK,
+      message: 'Detailed income report generated successfully',
+      data: result,
+    });
+  }
+);
+
 const updateIncomeStatus = catchAsync(async (req: Request, res: Response) => {
   const { incomeId } = req.params;
-  const { status, bankAccountId } = req.body;
+  const { status } = req.body;
 
-  const result = await IncomeService.updateIncomeStatus(
-    incomeId,
-    status,
-    bankAccountId
-  );
+  const result = await IncomeService.updateIncomeStatus(incomeId, status);
 
   sendResponse(res, {
     success: true,
@@ -98,6 +116,7 @@ export const IncomeController = {
   getHostIncomes,
   getSalonIncomes,
   generateIncomeReport,
+  generateDetailedIncomeReport,
   updateIncomeStatus,
   getAdminIncomeReport,
 };

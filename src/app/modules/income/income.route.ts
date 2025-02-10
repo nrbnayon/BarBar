@@ -1,3 +1,4 @@
+// src/app/modules/income/income.model.ts
 import express from 'express';
 import { USER_ROLES } from '../../../enums/user';
 import auth from '../../middlewares/auth';
@@ -14,11 +15,7 @@ router.post(
   IncomeController.createIncome
 );
 
-router.get(
-  '/host',
-  auth(USER_ROLES.HOST),
-  IncomeController.getHostIncomes
-);
+router.get('/host', auth(USER_ROLES.HOST), IncomeController.getHostIncomes);
 
 router.get(
   '/salon/:salonId',
@@ -31,6 +28,13 @@ router.get(
   auth(USER_ROLES.HOST),
   validateRequest(IncomeValidation.generateReportSchema),
   IncomeController.generateIncomeReport
+);
+
+router.get(
+  '/detailed-report',
+  auth(USER_ROLES.HOST),
+  validateRequest(IncomeValidation.generateReportSchema),
+  IncomeController.generateDetailedIncomeReport
 );
 
 router.patch(
