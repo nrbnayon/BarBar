@@ -11,9 +11,11 @@ export interface ICartItem {
 
 export interface ICart {
   user: Types.ObjectId;
+  salon?: Types.ObjectId; 
   items: ICartItem[];
   totalAmount: number;
-  status: 'active' | 'completed' | 'cancelled';
+  deliveryFee: number;
+  status: 'active' | 'completed' | 'cancelled' | 'pending';
   createdAt?: Date;
   updatedAt?: Date;
 }

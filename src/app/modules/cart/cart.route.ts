@@ -15,6 +15,13 @@ router.post(
   CartController.addToCart
 );
 
+router.post(
+  '/add',
+  auth(USER_ROLES.USER),
+  validateRequest(CartValidation.addToCartSchema),
+  CartController.addToCartSingleSalon
+);
+
 router.get('/', auth(USER_ROLES.USER), CartController.getCart);
 
 router.patch(

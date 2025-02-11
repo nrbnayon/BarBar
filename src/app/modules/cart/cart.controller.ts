@@ -18,6 +18,23 @@ const addToCart = catchAsync(async (req: Request, res: Response) => {
     data: result,
   });
 });
+const addToCartSingleSalon = catchAsync(async (req: Request, res: Response) => {
+  const userId = req.user.id;
+  const { productId, quantity } = req.body;
+
+  const result = await CartService.addToCartFromSingleSalon(
+    userId,
+    productId,
+    quantity
+  );
+
+  sendResponse(res, {
+    success: true,
+    statusCode: StatusCodes.OK,
+    message: 'Product added to cart successfully',
+    data: result,
+  });
+});
 
 const getCart = catchAsync(async (req: Request, res: Response) => {
   const userId = req.user.id;
@@ -73,6 +90,7 @@ const clearCart = catchAsync(async (req: Request, res: Response) => {
 
 export const CartController = {
   addToCart,
+  addToCartSingleSalon,
   getCart,
   updateCartItem,
   removeCartItem,

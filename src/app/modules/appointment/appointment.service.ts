@@ -601,7 +601,7 @@ const confirmCashPayment = async (
   if ((appointment.payment as PaymentInfo).method !== 'cash') {
     throw new ApiError(
       StatusCodes.BAD_REQUEST,
-      'This endpoint is only for cash payments'
+      'This method is only for cash payments'
     );
   }
 
@@ -679,7 +679,7 @@ const confirmCashPayment = async (
 
       await sendNotifications({
         message: `Payment confirmed by user for appointment ${updatedAppointment?.appointmentId}`,
-        type: 'ADMIN', // Notify the admin
+        type: 'ADMIN', 
         metadata: {
           appointmentId,
           confirmedBy: userInfo.name,

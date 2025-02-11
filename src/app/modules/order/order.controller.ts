@@ -19,21 +19,23 @@ const createOrder = catchAsync(async (req: Request, res: Response) => {
   });
 });
 
-const confirmSalonPayment = catchAsync(async (req: Request, res: Response) => {
+const confirmOrderPayment = catchAsync(async (req: Request, res: Response) => {
   const hostId = req.user.id;
   const { orderId } = req.params;
   const { salonId } = req.body;
 
-  const result = await OrderService.confirmSalonPayment(
+  const result = await OrderService.confirmOrderPaymentFromDB(
     hostId,
     orderId,
-    salonId
+    salonId,
+    // req.body,
+    req.user.role,
   );
 
   sendResponse(res, {
     success: true,
     statusCode: StatusCodes.OK,
-    message: 'Order confirmed successfully',
+    message: 'Order delivered and cash payment successfully',
     data: result,
   });
 });
@@ -102,6 +104,41 @@ const checkoutCart = catchAsync(async (req: Request, res: Response) => {
   });
 });
 
+const createOrderFromSingleCart = catchAsync(
+  async (req: Request, res: Response) => {
+    const userId = req.user.id;
+    const { paymentMethod } = req.body;
+
+    const result = await OrderService.createOrderFromSingleCart(
+      userId,
+      paymentMethod
+    );
+
+    sendResponse(res, {
+      success: true,
+      statusCode: StatusCodes.CREATED,
+      message: 'Order created successfully from cart',
+      data: result,
+    });
+  }
+);
+
+const completeCartAfterDelivery = catchAsync(
+  async (req: Request, res: Response) => {
+    const { orderId } = req.params;
+    const userId = req.user.id;
+
+    await OrderService.completeCartAfterDelivery(orderId, userId);
+
+    sendResponse(res, {
+      success: true,
+      statusCode: StatusCodes.OK,
+      message: 'Order delivery completed and cart marked as completed',
+    });
+  }
+);
+
+
 export const OrderController = {
   createOrder,
   getOrderById,
@@ -109,5 +146,7 @@ export const OrderController = {
   getHostOrders,
   updateOrderStatus,
   checkoutCart,
-  confirmSalonPayment,
+  confirmOrderPayment,
+  createOrderFromSingleCart,
+  completeCartAfterDelivery,
 };

@@ -12,12 +12,13 @@ const calculateCartSummary = (cart: ICart) => {
     (sum, item) => sum + item.quantity,
     0
   );
-  const totalAmount = cart.items.reduce(
+  const subtotal = cart.items.reduce(
     (sum, item) => sum + item.price * item.quantity,
     0
   );
+  const totalAmount = subtotal + cart.deliveryFee;
 
-  return { totalItems, totalQuantity, totalAmount };
+  return { totalItems, totalQuantity, subtotal, totalAmount };
 };
 
 const addToCart = async (
@@ -127,6 +128,110 @@ const addToCart = async (
   }
 };
 
+const addToCartFromSingleSalon = async (
+  userId: string,
+  productId: string,
+  quantity: number
+): Promise<ICart> => {
+  const session = await mongoose.startSession();
+  try {
+    session.startTransaction();
+
+    const product = await Product.findOne({ _id: productId, status: 'active' });
+    if (!product) {
+      throw new ApiError(
+        StatusCodes.NOT_FOUND,
+        'Product not found or inactive'
+      );
+    }
+
+    if (product.quantity < quantity) {
+      throw new ApiError(
+        StatusCodes.BAD_REQUEST,
+        'Insufficient product quantity'
+      );
+    }
+
+    let cart = await Cart.findOne({ user: userId, status: 'active' });
+
+    if (!cart) {
+      cart = await Cart.create({
+        user: userId,
+        salon: product.salon,
+        items: [
+          {
+            product: product._id,
+            quantity,
+            price: product.price,
+            salon: product.salon,
+            host: product.host,
+          },
+        ],
+        deliveryFee: 10,
+      });
+    } else {
+      // Check if product is from the same salon
+      if (!cart.salon || cart.salon.toString() !== product.salon.toString()) {
+        throw new ApiError(
+          StatusCodes.BAD_REQUEST,
+          'Cannot add products from different salons to the same cart'
+        );
+      }
+
+      const existingItemIndex = cart.items.findIndex(
+        item => item.product.toString() === productId
+      );
+
+      if (existingItemIndex > -1) {
+        throw new ApiError(
+          StatusCodes.BAD_REQUEST,
+          'Product already exists in cart. Please update quantity.'
+        );
+      }
+
+      cart.items.push({
+        product: product._id,
+        quantity,
+        price: product.price,
+        salon: product.salon,
+        host: product.host,
+      });
+
+      const { totalAmount } = calculateCartSummary(cart);
+      cart.totalAmount = totalAmount;
+
+      await cart.save({ session });
+    }
+
+    await session.commitTransaction();
+
+    const populatedCart = await Cart.findById(cart._id).populate([
+      { path: 'items.product', select: 'name images price' },
+      { path: 'items.salon', select: 'name address' },
+      { path: 'items.host', select: 'name email' },
+      { path: 'salon', select: 'name address' },
+    ]);
+
+    if (!populatedCart) {
+      throw new ApiError(
+        StatusCodes.INTERNAL_SERVER_ERROR,
+        'Failed to retrieve cart'
+      );
+    }
+
+    return {
+      ...populatedCart.toObject(),
+      ...calculateCartSummary(populatedCart),
+    };
+  } catch (error) {
+    await session.abortTransaction();
+    throw error;
+  } finally {
+    session.endSession();
+  }
+};
+
+
 const getCart = async (userId: string): Promise<ICart | null> => {
   const cart = await Cart.findOne({ user: userId, status: 'active' })
     .populate('items.product', 'name images price')
@@ -235,6 +340,7 @@ const clearCart = async (userId: string): Promise<void> => {
 
 export const CartService = {
   addToCart,
+  addToCartFromSingleSalon,
   getCart,
   updateCartItem,
   removeCartItem,

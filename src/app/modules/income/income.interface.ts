@@ -10,7 +10,7 @@ export interface IIncome {
   salon: Types.ObjectId;
   host: Types.ObjectId;
   order: Types.ObjectId;
-  confirmBy: {
+  confirmBy?: {
     _id: Types.ObjectId;
     name: string;
     email: string;

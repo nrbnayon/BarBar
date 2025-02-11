@@ -43,10 +43,15 @@ const cartSchema = new Schema<ICart>(
       required: true,
       default: 0,
     },
+    deliveryFee: {
+      type: Number,
+      required: true,
+      default: 10,
+    },
     status: {
       type: String,
-      enum: ['active', 'completed', 'cancelled'],
-      default: 'active',
+      enum: ['active', 'completed', 'cancelled', 'pending'],
+      default: 'pending',
     },
   },
   {

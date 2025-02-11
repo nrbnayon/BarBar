@@ -9,7 +9,9 @@ import { sendNotifications } from '../../../helpers/notificationHelper';
 import { Cart } from '../cart/cart.model';
 import { Product } from '../product/product.model';
 import { IncomeService } from '../income/income.service';
-import { IncomeStatus, IncomeType } from '../income/income.interface';
+import { IIncome, IncomeStatus, IncomeType } from '../income/income.interface';
+import { IConfirmPaymentPayload } from '../appointment/appointment.interface';
+import { USER_ROLES } from '../../../enums/user';
 
 // const createOrder = async (
 //   userId: string,
@@ -267,26 +269,152 @@ const updateOrderStatus = async (
   return order;
 };
 
-// In order.service.ts
-
-const confirmSalonPayment = async (
-  orderId: string,
-  salonId: string,
-  hostId: string
+// single salon cart items
+const createOrderFromSingleCart = async (
+  userId: string,
+  paymentMethod: string
 ): Promise<IOrder> => {
   const session = await mongoose.startSession();
   try {
     session.startTransaction();
 
-    const order = await Order.findOne({ orderId });
+    const cart = await Cart.findOne({ user: userId, status: 'active' })
+      .populate('items.product')
+      .populate('salon')
+      .populate('items.host');
+
+    if (!cart || cart.items.length === 0) {
+      throw new ApiError(StatusCodes.BAD_REQUEST, 'Cart is empty');
+    }
+
+    // Validate all products
+    for (const item of cart.items) {
+      const product = await Product.findById(item.product);
+      if (!product) {
+        throw new ApiError(
+          StatusCodes.NOT_FOUND,
+          `Product not found: ${item.product}`
+        );
+      }
+      if (product.quantity < item.quantity) {
+        throw new ApiError(
+          StatusCodes.BAD_REQUEST,
+          `Insufficient quantity for product: ${product.name}`
+        );
+      }
+    }
+
+    // Calculate delivery dates (5-7 days from now)
+    const now = new Date();
+    const estimatedDeliveryStart = new Date(now.setDate(now.getDate() + 5));
+    const estimatedDeliveryEnd = new Date(now.setDate(now.getDate() + 2));
+
+    // Generate order ID
+    const orderId = await Order.generateOrderId();
+
+    // Create order
+    const order = await Order.create(
+      [
+        {
+          orderId,
+          user: userId,
+          salon: cart.salon,
+          items: cart.items.map(item => ({
+            product: item.product._id,
+            quantity: item.quantity,
+            price: item.price,
+            salon: item.salon,
+            host: item.host._id,
+          })),
+          subtotal: cart.totalAmount,
+          deliveryFee: cart.deliveryFee,
+          totalAmount: cart.totalAmount + cart.deliveryFee,
+          paymentMethod,
+          status: 'pending',
+          paymentStatus: paymentMethod === 'cash' ? 'pending' : 'completed',
+          estimatedDeliveryStart,
+          estimatedDeliveryEnd,
+        },
+      ],
+      { session }
+    );
+
+    // Mark cart as pending instead of completed
+    cart.status = 'pending';
+    await cart.save({ session });
+
+    // Send notifications
+    const notificationMessage =
+      paymentMethod === 'cash'
+        ? `New cash order ${orderId} received. Total amount: $${order[0].totalAmount}`
+        : `New order ${orderId} received. Total amount: $${order[0].totalAmount}`;
+
+    await sendNotifications({
+      userId: cart.items[0].host._id.toString(),
+      message: notificationMessage,
+      type: 'ORDER',
+      metadata: {
+        orderId,
+        amount: order[0].totalAmount,
+        paymentMethod,
+        estimatedDelivery: `${estimatedDeliveryStart.toLocaleDateString()} - ${estimatedDeliveryEnd.toLocaleDateString()}`,
+      },
+    });
+
+    await session.commitTransaction();
+    return order[0];
+  } catch (error) {
+    await session.abortTransaction();
+    throw error;
+  } finally {
+    session.endSession();
+  }
+};
+
+const confirmOrderPaymentFromDB = async (
+  orderId: string,
+  salonId: string,
+  hostId: string,
+  userRole: string
+  // payload: IConfirmPaymentPayload
+): Promise<IOrder> => {
+  const session = await mongoose.startSession();
+  try {
+    session.startTransaction();
+
+    const order = await Order.findOne({ orderId }).populate(
+      'user',
+      'name email'
+    );
+    console.log('Get order data from DB::', order);
     if (!order) {
-      throw new ApiError(StatusCodes.NOT_FOUND, 'Order not found');
+      throw new ApiError(StatusCodes.NOT_FOUND, 'Order item not found');
+    }
+
+    if (userRole === USER_ROLES.HOST || userRole === USER_ROLES.USER) {
+      throw new ApiError(
+        StatusCodes.FORBIDDEN,
+        `Only the ${
+          userRole === USER_ROLES.HOST ? 'salon host' : 'order user'
+        } can confirm this order payment`
+      );
     }
 
     if (order.paymentMethod !== 'cash') {
       throw new ApiError(
         StatusCodes.BAD_REQUEST,
         'This method is only for cash payments'
+      );
+    }
+
+    if (
+      order.status === 'delivered' &&
+      order.paymentMethod === 'cash' &&
+      order.paymentStatus === 'paid'
+    ) {
+      throw new ApiError(
+        StatusCodes.BAD_REQUEST,
+        'Product already delivered and payment completed by hand cash'
       );
     }
 
@@ -304,9 +432,11 @@ const confirmSalonPayment = async (
 
     // Update payment confirmation for this salon
     salonOrder.paymentConfirmed = true;
-
+    order.status = 'completed';
+    order.paymentStatus = 'paid';
     // Create income record for this salon's products
-    const productIncome = {
+
+    const incomeData: IIncome = {
       salon: salonOrder.salon,
       host: salonOrder.host,
       order: order._id,
@@ -315,12 +445,10 @@ const confirmSalonPayment = async (
       status: 'paid' as IncomeStatus,
       paymentMethod: 'cash',
       transactionDate: new Date(),
-      remarks: `Product order payment completed`,
+      remarks: `Payment confirmed by ${userRole}`,
     };
 
-    const newIncome = await IncomeService.createIncome(productIncome);
-
-    console.log('New product income:', newIncome);
+    await IncomeService.createIncome(incomeData);
 
     // Check if all salon payments are confirmed
     const allPaymentsConfirmed = order.salonOrders.every(
@@ -328,7 +456,7 @@ const confirmSalonPayment = async (
     );
     if (allPaymentsConfirmed) {
       order.paymentStatus = 'completed';
-      order.status = 'confirmed';
+      order.status = 'delivered';
 
       // Update product quantities
       for (const item of order.items) {
@@ -361,70 +489,7 @@ const confirmSalonPayment = async (
   }
 };
 
-// const confirmSalonPayment = async (
-//   orderId: string,
-//   salonId: string,
-//   hostId: string
-// ): Promise<IOrder> => {
-//   const session = await mongoose.startSession();
-//   try {
-//     session.startTransaction();
-
-//     const order = await Order.findOne({ orderId });
-//     if (!order) {
-//       throw new ApiError(StatusCodes.NOT_FOUND, 'Order not found');
-//     }
-
-//     const salonOrder = order.salonOrders.find(
-//       so => so.salon.toString() === salonId && so.host.toString() === hostId
-//     );
-
-//     if (!salonOrder) {
-//       throw new ApiError(StatusCodes.NOT_FOUND, 'Salon order not found');
-//     }
-
-//     if (salonOrder.paymentConfirmed) {
-//       throw new ApiError(StatusCodes.BAD_REQUEST, 'Payment already confirmed');
-//     }
-
-//     // Update payment confirmation for this salon
-//     salonOrder.paymentConfirmed = true;
-
-//     // Check if all salon payments are confirmed
-//     const allPaymentsConfirmed = order.salonOrders.every(
-//       so => so.paymentConfirmed
-//     );
-//     if (allPaymentsConfirmed) {
-//       order.paymentStatus = 'completed';
-//       order.status = 'confirmed';
-
-//       // Update product quantities
-//       for (const item of order.items) {
-//         await Product.findByIdAndUpdate(item.product, {
-//           $inc: { quantity: -(item.quantity || 1) },
-//         });
-//       }
-
-//       // Notify user that order is confirmed
-//       await sendNotifications({
-//         userId: order.user.toString(),
-//         message: `Order #${order.orderId} has been confirmed. All payments received.`,
-//         type: 'ORDER_CONFIRMATION',
-//       });
-//     }
-
-//     await order.save({ session });
-//     await session.commitTransaction();
-
-//     return order;
-//   } catch (error) {
-//     await session.abortTransaction();
-//     throw error;
-//   } finally {
-//     session.endSession();
-//   }
-// };
-
+//multi salon item cart
 const createOrderFromCart = async (
   userId: string,
   paymentMethod: string
@@ -603,87 +668,54 @@ const createOrderFromCart = async (
 
     await session.commitTransaction();
     return order[0];
+  } catch (error) {
+    await session.abortTransaction();
+    throw error;
+  } finally {
+    session.endSession();
+  }
+};
 
-    //  if (paymentMethod === 'cash') {
-    //    for (const salonOrder of salonOrders) {
-    //      const hostId = salonOrder.host.toString();
+const completeCartAfterDelivery = async (
+  orderId: string,
+  userId: string
+): Promise<void> => {
+  const session = await mongoose.startSession();
+  try {
+    session.startTransaction();
 
-    //      // Get detailed product info for this salon's items
-    //      const orderDetails = cart.items
-    //        .filter(
-    //          item => item.salon._id.toString() === salonOrder.salon.toString()
-    //        )
-    //        .map(item => ({
-    //          productName: item.product.name,
-    //          quantity: item.quantity,
-    //          price: item.price,
-    //          totalPrice: item.price * item.quantity,
-    //          productImages: item.product.images,
-    //        }));
+    const order = await Order.findOne({ orderId });
+    if (!order) {
+      throw new ApiError(StatusCodes.NOT_FOUND, 'Order not found');
+    }
 
-    //      await sendNotifications({
-    //        userId: salonOrder.host.toString(),
-    //        message: `New cash order #${orderId} received - Amount: $${salonOrder.amount}. Please confirm payment receipt.`,
-    //        type: 'ORDER',
-    //        receiver: hostId,
-    //        metadata: {
-    //          orderId,
-    //          salonId: salonOrder.salon.toString(),
-    //          salonName: cart.items.find(
-    //            item => item.salon._id.toString() === salonOrder.salon.toString()
-    //          )?.salon.name,
-    //          amount: salonOrder.amount,
-    //          items: orderDetails,
-    //          customerInfo: {
-    //            userId: userId,
-    //            orderDate: new Date(),
-    //            paymentMethod: paymentMethod,
-    //          },
-    //        },
-    //      });
-    //    }
-    //  } else {
-    //    for (const salonOrder of salonOrders) {
-    //      const hostId = salonOrder.host.toString();
+    if (order.status !== 'confirmed' && order.status !== 'completed') {
+      throw new ApiError(
+        StatusCodes.BAD_REQUEST,
+        'Order payment must be confirmed before delivery completion'
+      );
+    }
 
-    //      // Get detailed product info for this salon's items
-    //      const orderDetails = cart.items
-    //        .filter(
-    //          item => item.salon._id.toString() === salonOrder.salon.toString()
-    //        )
-    //        .map(item => ({
-    //          productName: item.product.name,
-    //          quantity: item.quantity,
-    //          price: item.price,
-    //          totalPrice: item.price * item.quantity,
-    //          productImages: item.product.images,
-    //        }));
+    // Find the associated cart
+    const cart = await Cart.findOne({
+      user: userId,
+      status: 'pending',
+      salon: order.salon,
+    });
 
-    //      await sendNotifications({
-    //        userId: salonOrder.host.toString(),
-    //        message: `New order #${orderId} received - Amount: $${salonOrder.amount}`,
-    //        type: 'ORDER',
-    //        receiver: hostId,
-    //        metadata: {
-    //          orderId,
-    //          salonId: salonOrder.salon.toString(),
-    //          salonName: cart.items.find(
-    //            item => item.salon._id.toString() === salonOrder.salon.toString()
-    //          )?.salon.name,
-    //          amount: salonOrder.amount,
-    //          items: orderDetails,
-    //          customerInfo: {
-    //            userId: userId,
-    //            orderDate: new Date(),
-    //            paymentMethod: paymentMethod,
-    //          },
-    //        },
-    //      });
-    //    }
-    //  }
+    if (!cart) {
+      throw new ApiError(StatusCodes.NOT_FOUND, 'Associated cart not found');
+    }
 
-    //  await session.commitTransaction();
-    //  return order[0];
+    // Update order status
+    order.status = 'completed';
+    await order.save({ session });
+
+    // Now we can mark the cart as completed
+    cart.status = 'completed';
+    await cart.save({ session });
+
+    await session.commitTransaction();
   } catch (error) {
     await session.abortTransaction();
     throw error;
@@ -699,5 +731,7 @@ export const OrderService = {
   getHostOrders,
   updateOrderStatus,
   createOrderFromCart,
-  confirmSalonPayment,
+  confirmOrderPaymentFromDB,
+  createOrderFromSingleCart,
+  completeCartAfterDelivery,
 };
