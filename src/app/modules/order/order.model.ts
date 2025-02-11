@@ -1,4 +1,4 @@
- // src\app\modules\order\order.model.ts
+// src\app\modules\order\order.model.ts
 import { Schema, model } from 'mongoose';
 import { IOrder, OrderModel } from './order.interface';
 import crypto from 'crypto';
@@ -80,12 +80,19 @@ const orderSchema = new Schema<IOrder, OrderModel>(
     },
     status: {
       type: String,
-      enum: ['pending', 'confirmed', 'completed', 'cancelled', 'refunded'],
+      enum: [
+        'pending',
+        'confirmed',
+        'completed',
+        'cancelled',
+        'refunded',
+        'delivered',
+      ],
       default: 'pending',
     },
     paymentStatus: {
       type: String,
-      enum: ['pending', 'completed', 'failed', 'refunded'],
+      enum: ['pending', 'completed', 'failed', 'refunded', 'paid'],
       default: 'pending',
     },
     salonOrders: [salonOrderSchema],

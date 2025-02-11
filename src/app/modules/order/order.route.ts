@@ -35,6 +35,29 @@ router.post(
 /** ==========================
  *  FETCHING ORDERS
  *  ========================== */
+
+/** ==========================
+ *  FETCHING ORDERS
+ *  ========================== */
+router.get('/my-orders', auth(USER_ROLES.USER), OrderController.getUserOrders);
+
+router.get(
+  '/host-orders',
+  auth(USER_ROLES.HOST),
+  OrderController.getHostOrders
+);
+
+router.get(
+  '/all-orders',
+  auth(USER_ROLES.ADMIN),
+  OrderController.getAllOrdersForAdmin
+);
+
+router.get(
+  '/:orderId',
+  auth(USER_ROLES.USER, USER_ROLES.HOST, USER_ROLES.ADMIN),
+  OrderController.getOrderById
+);
 router.get('/my-orders', auth(USER_ROLES.USER), OrderController.getUserOrders);
 
 router.get(

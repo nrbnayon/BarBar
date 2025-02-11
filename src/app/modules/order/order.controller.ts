@@ -26,18 +26,29 @@ const confirmOrderPayment = catchAsync(async (req: Request, res: Response) => {
   const { orderId } = req.params;
   const { salonId } = req.body;
 
+  const hostSalon = await Salon.findOne({ host: hostId });
+  if (!hostSalon) {
+    throw new ApiError(StatusCodes.NOT_FOUND, 'Salon not found for this host');
+  }
+  if (salonId && salonId !== hostSalon._id.toString()) {
+    throw new ApiError(
+      StatusCodes.FORBIDDEN,
+      'You can only confirm payments for orders associated with your own salon'
+    );
+  }
+
   const result = await OrderService.confirmOrderPaymentFromDB(
     hostId,
     orderId,
     salonId,
-    // req.body,
     req.user.role
   );
 
   sendResponse(res, {
     success: true,
     statusCode: StatusCodes.OK,
-    message: 'Order delivered and cash payment successfully',
+    message:
+      'Order payment successfully confirmed, and the order has been marked as delivered.',
     data: result,
   });
 });
@@ -56,7 +67,9 @@ const getOrderById = catchAsync(async (req: Request, res: Response) => {
 
 const getUserOrders = catchAsync(async (req: Request, res: Response) => {
   const userId = req.user.id;
-  const result = await OrderService.getUserOrders(userId);
+  const { searchTerm } = req.query; 
+
+  const result = await OrderService.getUserOrders(userId, searchTerm as string);
 
   sendResponse(res, {
     success: true,
@@ -68,7 +81,9 @@ const getUserOrders = catchAsync(async (req: Request, res: Response) => {
 
 const getHostOrders = catchAsync(async (req: Request, res: Response) => {
   const hostId = req.user.id;
-  const result = await OrderService.getHostOrders(hostId);
+  const { searchTerm } = req.query; // Get searchTerm from query params
+
+  const result = await OrderService.getHostOrders(hostId, searchTerm as string);
 
   sendResponse(res, {
     success: true,
@@ -77,6 +92,21 @@ const getHostOrders = catchAsync(async (req: Request, res: Response) => {
     data: result,
   });
 });
+
+const getAllOrdersForAdmin = catchAsync(async (req: Request, res: Response) => {
+  const { searchTerm } = req.query; // Get searchTerm from query params
+
+  const result = await OrderService.getAllOrdersForAdmin(searchTerm as string);
+
+  sendResponse(res, {
+    success: true,
+    statusCode: StatusCodes.OK,
+    message: 'All orders retrieved successfully',
+    data: result,
+  });
+});
+
+
 
 const updateOrderStatus = catchAsync(async (req: Request, res: Response) => {
   const { orderId } = req.params;
@@ -161,6 +191,7 @@ export const OrderController = {
   getOrderById,
   getUserOrders,
   getHostOrders,
+  getAllOrdersForAdmin,
   updateOrderStatus,
   checkoutCart,
   confirmOrderPayment,

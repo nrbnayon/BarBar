@@ -38,9 +38,12 @@ const checkoutCartSchema = z.object({
 });
 const confirmOrderPaymentSchema = z.object({
   body: z.object({
-    salonId: z.string().refine(val => Types.ObjectId.isValid(val), {
-      message: 'Invalid salon ID, should be a valid salon ObjectId',
-    }),
+    salonId: z
+      .string()
+      .refine(val => Types.ObjectId.isValid(val), {
+        message: 'Invalid salon ID, should be a valid salon ObjectId',
+      })
+      .optional(),
     paymentMethod: z.enum(['cash', 'visa', 'mastercard', 'paypal']).optional(),
   }),
 });

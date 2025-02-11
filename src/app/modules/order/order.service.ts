@@ -217,8 +217,21 @@ const getOrderById = async (orderId: string): Promise<IOrder | null> => {
     .populate('paymentId');
 };
 
-const getUserOrders = async (userId: string): Promise<IOrder[]> => {
-  return Order.find({ user: userId })
+const getUserOrders = async (
+  userId: string,
+  searchTerm?: string
+): Promise<IOrder[]> => {
+  const filter: any = { user: userId };
+
+  if (searchTerm) {
+    filter.$or = [
+      { orderId: { $regex: searchTerm, $options: 'i' } },
+      { 'items.product.name': { $regex: searchTerm, $options: 'i' } },
+      { 'items.service.name': { $regex: searchTerm, $options: 'i' } },
+    ];
+  }
+
+  return Order.find(filter)
     .populate('items.product')
     .populate('items.service')
     .populate({
@@ -228,8 +241,45 @@ const getUserOrders = async (userId: string): Promise<IOrder[]> => {
     .sort({ createdAt: -1 });
 };
 
-const getHostOrders = async (hostId: string): Promise<IOrder[]> => {
-  return Order.find({ 'salonOrders.host': hostId })
+const getHostOrders = async (
+  hostId: string,
+  searchTerm?: string
+): Promise<IOrder[]> => {
+  const filter: any = { 'salonOrders.host': hostId };
+
+  if (searchTerm) {
+    filter.$or = [
+      { orderId: { $regex: searchTerm, $options: 'i' } },
+      { 'items.product.name': { $regex: searchTerm, $options: 'i' } },
+      { 'items.service.name': { $regex: searchTerm, $options: 'i' } },
+    ];
+  }
+
+  return Order.find(filter)
+    .populate('user', 'name email')
+    .populate('items.product')
+    .populate('items.service')
+    .populate({
+      path: 'salonOrders.salon',
+      select: '-remarks -businessHours -doc -passportNum -__v',
+    })
+    .sort({ createdAt: -1 });
+};
+
+const getAllOrdersForAdmin = async (searchTerm?: string): Promise<IOrder[]> => {
+  const filter: any = {};
+
+  if (searchTerm) {
+    filter.$or = [
+      { orderId: { $regex: searchTerm, $options: 'i' } },
+      { 'user.name': { $regex: searchTerm, $options: 'i' } },
+      { 'user.email': { $regex: searchTerm, $options: 'i' } },
+      { 'items.product.name': { $regex: searchTerm, $options: 'i' } },
+      { 'items.service.name': { $regex: searchTerm, $options: 'i' } },
+    ];
+  }
+
+  return Order.find(filter)
     .populate('user', 'name email')
     .populate('items.product')
     .populate('items.service')
@@ -526,23 +576,17 @@ const confirmOrderPaymentFromDB = async (
   salonId: string,
   userRole: string
 ): Promise<IOrder> => {
-  console.log(
-    'Get all info for confirm order::',
-    hostId,
-    orderId,
-    salonId,
-    userRole
-  );
   const session = await mongoose.startSession();
   try {
     session.startTransaction();
 
+    // Find and populate order
     const order = await Order.findOne({ orderId }).populate(
       'user',
       'name email'
     );
     if (!order) {
-      throw new ApiError(StatusCodes.NOT_FOUND, 'Order item not found');
+      throw new ApiError(StatusCodes.NOT_FOUND, 'Order not found');
     }
 
     // Authorization check
@@ -565,52 +609,118 @@ const confirmOrderPaymentFromDB = async (
     if (order.status === 'delivered' && order.paymentStatus === 'paid') {
       throw new ApiError(
         StatusCodes.BAD_REQUEST,
-        'Product already delivered and payment completed'
+        'Order already delivered and payment completed'
       );
     }
 
-    // Find salon order
-    const salonOrder = order.salonOrders.find(
-      so => so.salon.toString() === salonId && so.host.toString() === hostId
-    );
+    // Handle orders with salonOrders array (multi-salon orders)
+    if (order.salonOrders && order.salonOrders.length > 0) {
+      const salonOrder = order.salonOrders.find(
+        so => so.salon.toString() === salonId && so.host.toString() === hostId
+      );
 
-    if (!salonOrder) {
-      throw new ApiError(StatusCodes.NOT_FOUND, 'Salon order not found');
-    }
+      if (!salonOrder) {
+        throw new ApiError(StatusCodes.NOT_FOUND, 'Salon order not found');
+      }
 
-    if (salonOrder.paymentConfirmed) {
-      throw new ApiError(StatusCodes.BAD_REQUEST, 'Payment already confirmed');
-    }
+      if (salonOrder.paymentConfirmed) {
+        throw new ApiError(
+          StatusCodes.BAD_REQUEST,
+          'Payment already confirmed'
+        );
+      }
 
-    // Update payment status
-    salonOrder.paymentConfirmed = true;
-    salonOrder.status = 'completed';
+      // Update salon order status
+      salonOrder.paymentConfirmed = true;
+      salonOrder.status = 'completed';
 
-    // Create income record
-    const incomeData: IIncome = {
-      salon: salonOrder.salon,
-      host: salonOrder.host,
-      order: order._id,
-      type: 'product',
-      amount: salonOrder.amount,
-      status: 'paid',
-      paymentMethod: 'cash',
-      transactionDate: new Date(),
-      remarks: `Payment confirmed by ${userRole}`,
-    };
+      // Create income record for this salon
+      const incomeData: IIncome = {
+        salon: salonOrder.salon,
+        host: salonOrder.host,
+        order: order._id,
+        type: 'product',
+        amount: salonOrder.amount,
+        status: 'paid',
+        paymentMethod: 'cash',
+        transactionDate: new Date(),
+        remarks: `Payment confirmed by ${userRole}`,
+      };
 
-    await IncomeService.createIncome(incomeData);
+      await IncomeService.createIncome(incomeData);
 
-    // Check if all payments confirmed
-    const allPaymentsConfirmed = order.salonOrders.every(
-      so => so.paymentConfirmed
-    );
-    if (allPaymentsConfirmed) {
+      // Check if all salon payments are confirmed
+      const allPaymentsConfirmed = order.salonOrders.every(
+        so => so.paymentConfirmed
+      );
+
+      if (allPaymentsConfirmed) {
+        order.paymentStatus = 'paid';
+        order.status = 'delivered';
+
+        // Update product quantities
+        for (const item of order.items) {
+          await Product.findByIdAndUpdate(
+            item.product,
+            { $inc: { quantity: -(item.quantity || 1) } },
+            { session }
+          );
+        }
+
+        // Send notification to user
+        await sendNotifications({
+          userId: order.user.toString(),
+          message: `Order #${order.orderId} has been delivered and all payments confirmed.`,
+          type: 'PAYMENT',
+        });
+      }
+    } else {
+      // Handle single salon orders (no salonOrders array)
+      // Verify the host is associated with the order
+
+      console.log('Get all order ::', order);
+
+      const orderItems = order.items.filter(
+        item =>
+          item.salon.toString() === salonId && item.host.toString() === hostId
+      );
+
+      console.log('Get all order items::', orderItems);
+
+      if (orderItems.length === 0) {
+        throw new ApiError(
+          StatusCodes.NOT_FOUND,
+          'No items found for this salon and host'
+        );
+      }
+
+      // Calculate total amount for this salon's items
+      const salonAmount = orderItems.reduce(
+        (sum, item) => sum + item.price * (item.quantity || 1),
+        0
+      );
+
+      // Create income record
+      const incomeData: IIncome = {
+        salon: new mongoose.Types.ObjectId(salonId),
+        host: new mongoose.Types.ObjectId(hostId),
+        order: order._id,
+        type: 'product',
+        amount: salonAmount,
+        status: 'paid',
+        paymentMethod: 'cash',
+        transactionDate: new Date(),
+        remarks: `Payment confirmed by ${userRole}`,
+      };
+
+      await IncomeService.createIncome(incomeData);
+
+      // Update order status
       order.paymentStatus = 'paid';
       order.status = 'delivered';
 
       // Update product quantities
-      for (const item of order.items) {
+      for (const item of orderItems) {
         await Product.findByIdAndUpdate(
           item.product,
           { $inc: { quantity: -(item.quantity || 1) } },
@@ -876,6 +986,7 @@ export const OrderService = {
   getOrderById,
   getUserOrders,
   getHostOrders,
+  getAllOrdersForAdmin,
   updateOrderStatus,
   createOrderFromCart,
   confirmOrderPaymentFromDB,
