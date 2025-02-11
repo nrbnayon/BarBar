@@ -95,11 +95,11 @@ const orderSchema = new Schema<IOrder, OrderModel>(
     },
     estimatedDeliveryStart: {
       type: Date,
-      required: true,
+      // required: true,
     },
     estimatedDeliveryEnd: {
       type: Date,
-      required: true,
+      // required: true,
     },
     paymentConfirmedBy: {
       role: {
@@ -124,8 +124,8 @@ const orderSchema = new Schema<IOrder, OrderModel>(
 orderSchema.statics.generateOrderId = async function (): Promise<string> {
   while (true) {
     const randomNum = Math.floor(10000 + Math.random() * 90000);
-    const randomChars = crypto.randomBytes(3).toString('hex');
-    const orderId = `#${randomNum}${randomChars}`;
+    const randomChars = crypto.randomBytes(2).toString('hex').slice(0, 3);
+    const orderId = `${randomNum}${randomChars}`;
     const existingOrder = await this.findOne({ orderId });
     if (!existingOrder) {
       return orderId;

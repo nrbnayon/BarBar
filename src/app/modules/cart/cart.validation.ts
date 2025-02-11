@@ -10,7 +10,8 @@ const addToCartSchema = z.object({
       .number({
         required_error: 'Quantity is required',
       })
-      .min(1),
+      .min(1)
+      .default(1),
   }),
 });
 

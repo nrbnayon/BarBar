@@ -28,6 +28,14 @@ const cartItemSchema = new Schema<ICartItem>({
     ref: 'User',
     required: true,
   },
+  estimatedDeliveryStart: {
+    type: Date,
+    required: true,
+  },
+  estimatedDeliveryEnd: {
+    type: Date,
+    required: true,
+  },
 });
 
 const cartSchema = new Schema<ICart>(
@@ -51,7 +59,7 @@ const cartSchema = new Schema<ICart>(
     status: {
       type: String,
       enum: ['active', 'completed', 'cancelled', 'pending'],
-      default: 'pending',
+      default: 'active',
     },
   },
   {

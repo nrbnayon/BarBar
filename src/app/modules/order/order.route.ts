@@ -63,8 +63,9 @@ router.patch(
  *  PAYMENT CONFIRMATION
  *  ========================== */
 router.patch(
-  '/confirm-orders-and-cash-payment',
+  '/:orderId/confirm-orders-and-cash-payment',
   auth(USER_ROLES.HOST, USER_ROLES.USER),
+  validateRequest(OrderValidation.confirmOrderPaymentSchema),
   OrderController.confirmOrderPayment
 );
 

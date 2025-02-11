@@ -12,14 +12,14 @@ const router = express.Router();
  *  ADDING ITEMS TO CART
  *  ========================== */
 router.post(
-  '/add',
+  '/add-multi-salon-items',
   auth(USER_ROLES.USER),
   validateRequest(CartValidation.addToCartSchema),
-  CartController.addToCart
+  CartController.addToCartMultiSalon
 );
 
 router.post(
-  '/add-single-salon-item',
+  '/add-single-salon-items',
   auth(USER_ROLES.USER),
   validateRequest(CartValidation.addToCartSchema),
   CartController.addToCartSingleSalon

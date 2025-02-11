@@ -221,7 +221,10 @@ const getUserOrders = async (userId: string): Promise<IOrder[]> => {
   return Order.find({ user: userId })
     .populate('items.product')
     .populate('items.service')
-    .populate('items.salon')
+    .populate({
+      path: 'items.salon',
+      select: '-remarks -businessHours -doc -passportNum -__v',
+    })
     .sort({ createdAt: -1 });
 };
 
@@ -230,39 +233,54 @@ const getHostOrders = async (hostId: string): Promise<IOrder[]> => {
     .populate('user', 'name email')
     .populate('items.product')
     .populate('items.service')
-    .populate('salonOrders.salon')
+    .populate({
+      path: 'salonOrders.salon',
+      select: '-remarks -businessHours -doc -passportNum -__v',
+    })
     .sort({ createdAt: -1 });
 };
 
 const updateOrderStatus = async (
   orderId: string,
   status: string,
-  salonId?: string
+  hostSalonId: string
 ): Promise<IOrder> => {
   const order = await Order.findOne({ orderId });
+
   if (!order) {
     throw new ApiError(StatusCodes.NOT_FOUND, 'Order not found');
   }
 
-  if (salonId) {
-    // Update specific salon order status
-    const salonOrder = order.salonOrders.find(
-      so => so.salon.toString() === salonId
+  if (order.salonOrders.length === 0) {
+    const hasValidItems = order.items.some(
+      item => item.salon.toString() === hostSalonId
     );
-    if (!salonOrder) {
-      throw new ApiError(StatusCodes.NOT_FOUND, 'Salon order not found');
-    }
-    salonOrder.status = status as any;
 
-    // Check if all salon orders are completed
-    const allCompleted = order.salonOrders.every(so => so.status === status);
-    if (allCompleted) {
-      order.status = status as any;
+    if (!hasValidItems) {
+      throw new ApiError(
+        StatusCodes.NOT_FOUND,
+        'No orders found for your salon'
+      );
     }
-  } else {
-    // Update main order status
+
     order.status = status as any;
-    order.salonOrders.forEach(so => (so.status = status as any));
+    await order.save();
+    return order;
+  }
+
+  const salonOrder = order.salonOrders.find(
+    so => so.salon.toString() === hostSalonId
+  );
+
+  if (!salonOrder) {
+    throw new ApiError(StatusCodes.NOT_FOUND, 'No orders found for your salon');
+  }
+
+  salonOrder.status = status as any;
+
+  const allCompleted = order.salonOrders.every(so => so.status === status);
+  if (allCompleted) {
+    order.status = status as any;
   }
 
   await order.save();
@@ -278,10 +296,20 @@ const createOrderFromSingleCart = async (
   try {
     session.startTransaction();
 
+    // Fetch the cart and exclude unnecessary fields from the salon
     const cart = await Cart.findOne({ user: userId, status: 'active' })
-      .populate('items.product')
-      .populate('items.salon')
-      .populate('items.host');
+      .populate({
+        path: 'items.product',
+        select: '-__v',
+      })
+      .populate({
+        path: 'items.salon',
+        select: '-remarks -businessHours -doc -passportNum -__v',
+      })
+      .populate({
+        path: 'items.host',
+        select: '-__v',
+      });
 
     if (!cart || cart.items.length === 0) {
       throw new ApiError(StatusCodes.BAD_REQUEST, 'Cart is empty');
@@ -350,7 +378,7 @@ const createOrderFromSingleCart = async (
         : `New order ${orderId} received. Total amount: $${order[0].totalAmount}`;
 
     await sendNotifications({
-      userId: cart.items[0].host._id.toString(),
+      receiver: cart.items[0].host._id.toString(),
       message: notificationMessage,
       type: 'ORDER',
       metadata: {
@@ -371,13 +399,140 @@ const createOrderFromSingleCart = async (
   }
 };
 
+// const confirmOrderPaymentFromDB = async (
+//   orderId: string,
+//   salonId: string,
+//   hostId: string,
+//   userRole: string
+//   // payload: IConfirmPaymentPayload
+// ): Promise<IOrder> => {
+//   console.log('Get all data in::', orderId, salonId, hostId, userRole);
+//   const session = await mongoose.startSession();
+//   try {
+//     session.startTransaction();
+
+//     const order = await Order.findOne({ orderId }).populate(
+//       'user',
+//       'name email'
+//     );
+//     console.log('Get order data from DB::', order);
+//     if (!order) {
+//       throw new ApiError(StatusCodes.NOT_FOUND, 'Order item not found');
+//     }
+
+//     if (userRole === USER_ROLES.HOST || userRole === USER_ROLES.USER) {
+//       throw new ApiError(
+//         StatusCodes.FORBIDDEN,
+//         `Only the ${
+//           userRole === USER_ROLES.HOST ? 'salon host' : 'order user'
+//         } can confirm this order payment`
+//       );
+//     }
+
+//     if (order.paymentMethod !== 'cash') {
+//       throw new ApiError(
+//         StatusCodes.BAD_REQUEST,
+//         'This method is only for cash payments'
+//       );
+//     }
+
+//     if (
+//       order.status === 'delivered' &&
+//       order.paymentMethod === 'cash' &&
+//       order.paymentStatus === 'paid'
+//     ) {
+//       throw new ApiError(
+//         StatusCodes.BAD_REQUEST,
+//         'Product already delivered and payment completed by hand cash'
+//       );
+//     }
+
+//     const salonOrder = order.salonOrders.find(
+//       so => so.salon.toString() === salonId && so.host.toString() === hostId
+//     );
+
+//     if (!salonOrder) {
+//       throw new ApiError(StatusCodes.NOT_FOUND, 'Salon order not found');
+//     }
+
+//     if (salonOrder.paymentConfirmed) {
+//       throw new ApiError(StatusCodes.BAD_REQUEST, 'Payment already confirmed');
+//     }
+
+//     // Update payment confirmation for this salon
+//     salonOrder.paymentConfirmed = true;
+//     order.status = 'completed';
+//     order.paymentStatus = 'paid';
+//     // Create income record for this salon's products
+
+//     const incomeData: IIncome = {
+//       salon: salonOrder.salon,
+//       host: salonOrder.host,
+//       order: order._id,
+//       type: 'product' as IncomeType,
+//       amount: salonOrder.amount,
+//       status: 'paid' as IncomeStatus,
+//       paymentMethod: 'cash',
+//       transactionDate: new Date(),
+//       remarks: `Payment confirmed by ${userRole}`,
+//     };
+
+//     await IncomeService.createIncome(incomeData);
+
+//     // Check if all salon payments are confirmed
+//     const allPaymentsConfirmed = order.salonOrders.every(
+//       so => so.paymentConfirmed
+//     );
+//     if (allPaymentsConfirmed) {
+//       order.paymentStatus = 'completed';
+//       order.status = 'delivered';
+
+//       // Update product quantities
+//       for (const item of order.items) {
+//         await Product.findByIdAndUpdate(
+//           item.product,
+//           {
+//             $inc: { quantity: -(item.quantity || 1) },
+//           },
+//           { session }
+//         );
+//       }
+
+//       // Notify user that order is confirmed
+//       await sendNotifications({
+//         userId: order.user.toString(),
+//         message: `Order #${order.orderId} has been confirmed. All payments received.`,
+//         type: 'PAYMENT',
+//       });
+//     }
+
+//     await order.save({ session });
+//     await session.commitTransaction();
+
+//     return order;
+//   } catch (error) {
+//     await session.abortTransaction();
+//     throw error;
+//   } finally {
+//     session.endSession();
+//   }
+// };
+
+//multi salon item cart
+
 const confirmOrderPaymentFromDB = async (
+  hostId: string,
   orderId: string,
   salonId: string,
-  hostId: string,
   userRole: string
-  // payload: IConfirmPaymentPayload
 ): Promise<IOrder> => {
+  console.log(
+    'Get all info for confirm order::',
+    hostId,
+    orderId,
+    salonId,
+    userRole
+  );
   const session = await mongoose.startSession();
   try {
     session.startTransaction();
@@ -386,20 +541,19 @@ const confirmOrderPaymentFromDB = async (
       'user',
       'name email'
     );
-    console.log('Get order data from DB::', order);
     if (!order) {
       throw new ApiError(StatusCodes.NOT_FOUND, 'Order item not found');
     }
 
-    if (userRole === USER_ROLES.HOST || userRole === USER_ROLES.USER) {
+    // Authorization check
+    if (userRole !== USER_ROLES.HOST && userRole !== USER_ROLES.USER) {
       throw new ApiError(
         StatusCodes.FORBIDDEN,
-        `Only the ${
-          userRole === USER_ROLES.HOST ? 'salon host' : 'order user'
-        } can confirm this order payment`
+        'Only the salon host or order user can confirm this order payment'
       );
     }
 
+    // Payment method check
     if (order.paymentMethod !== 'cash') {
       throw new ApiError(
         StatusCodes.BAD_REQUEST,
@@ -407,17 +561,15 @@ const confirmOrderPaymentFromDB = async (
       );
     }
 
-    if (
-      order.status === 'delivered' &&
-      order.paymentMethod === 'cash' &&
-      order.paymentStatus === 'paid'
-    ) {
+    // Already delivered check
+    if (order.status === 'delivered' && order.paymentStatus === 'paid') {
       throw new ApiError(
         StatusCodes.BAD_REQUEST,
-        'Product already delivered and payment completed by hand cash'
+        'Product already delivered and payment completed'
       );
     }
 
+    // Find salon order
     const salonOrder = order.salonOrders.find(
       so => so.salon.toString() === salonId && so.host.toString() === hostId
     );
@@ -430,19 +582,18 @@ const confirmOrderPaymentFromDB = async (
       throw new ApiError(StatusCodes.BAD_REQUEST, 'Payment already confirmed');
     }
 
-    // Update payment confirmation for this salon
+    // Update payment status
     salonOrder.paymentConfirmed = true;
-    order.status = 'completed';
-    order.paymentStatus = 'paid';
-    // Create income record for this salon's products
+    salonOrder.status = 'completed';
 
+    // Create income record
     const incomeData: IIncome = {
       salon: salonOrder.salon,
       host: salonOrder.host,
       order: order._id,
-      type: 'product' as IncomeType,
+      type: 'product',
       amount: salonOrder.amount,
-      status: 'paid' as IncomeStatus,
+      status: 'paid',
       paymentMethod: 'cash',
       transactionDate: new Date(),
       remarks: `Payment confirmed by ${userRole}`,
@@ -450,36 +601,33 @@ const confirmOrderPaymentFromDB = async (
 
     await IncomeService.createIncome(incomeData);
 
-    // Check if all salon payments are confirmed
+    // Check if all payments confirmed
     const allPaymentsConfirmed = order.salonOrders.every(
       so => so.paymentConfirmed
     );
     if (allPaymentsConfirmed) {
-      order.paymentStatus = 'completed';
+      order.paymentStatus = 'paid';
       order.status = 'delivered';
 
       // Update product quantities
       for (const item of order.items) {
         await Product.findByIdAndUpdate(
           item.product,
-          {
-            $inc: { quantity: -(item.quantity || 1) },
-          },
+          { $inc: { quantity: -(item.quantity || 1) } },
           { session }
         );
       }
 
-      // Notify user that order is confirmed
+      // Send notification
       await sendNotifications({
         userId: order.user.toString(),
-        message: `Order #${order.orderId} has been confirmed. All payments received.`,
+        message: `Order #${order.orderId} has been delivered and payment confirmed.`,
         type: 'PAYMENT',
       });
     }
 
     await order.save({ session });
     await session.commitTransaction();
-
     return order;
   } catch (error) {
     await session.abortTransaction();
@@ -489,7 +637,6 @@ const confirmOrderPaymentFromDB = async (
   }
 };
 
-//multi salon item cart
 const createOrderFromCart = async (
   userId: string,
   paymentMethod: string

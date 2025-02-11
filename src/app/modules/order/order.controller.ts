@@ -4,6 +4,8 @@ import { StatusCodes } from 'http-status-codes';
 import catchAsync from '../../../shared/catchAsync';
 import sendResponse from '../../../shared/sendResponse';
 import { OrderService } from './order.service';
+import ApiError from '../../../errors/ApiError';
+import { Salon } from '../salons/salon.model';
 
 const createOrder = catchAsync(async (req: Request, res: Response) => {
   const userId = req.user.id;
@@ -29,7 +31,7 @@ const confirmOrderPayment = catchAsync(async (req: Request, res: Response) => {
     orderId,
     salonId,
     // req.body,
-    req.user.role,
+    req.user.role
   );
 
   sendResponse(res, {
@@ -80,12 +82,28 @@ const updateOrderStatus = catchAsync(async (req: Request, res: Response) => {
   const { orderId } = req.params;
   const { status, salonId } = req.body;
 
-  const result = await OrderService.updateOrderStatus(orderId, status, salonId);
+  const hostId = req.user.id;
+  const hostSalon = await Salon.findOne({ host: hostId });
+  if (!hostSalon) {
+    throw new ApiError(StatusCodes.NOT_FOUND, 'Salon not found for this host');
+  }
+  if (salonId && salonId !== hostSalon._id.toString()) {
+    throw new ApiError(
+      StatusCodes.FORBIDDEN,
+      'You can only confirm orders for your own salon'
+    );
+  }
+
+  const result = await OrderService.updateOrderStatus(
+    orderId,
+    status,
+    hostSalon._id.toString()
+  );
 
   sendResponse(res, {
     success: true,
     statusCode: StatusCodes.OK,
-    message: 'Order status updated successfully',
+    message: 'Order confirm successfully',
     data: result,
   });
 });
@@ -137,7 +155,6 @@ const completeCartAfterDelivery = catchAsync(
     });
   }
 );
-
 
 export const OrderController = {
   createOrder,

@@ -38,15 +38,30 @@ const validateProduct = async (productId: string, quantity: number) => {
   return product;
 };
 
+const calculateDeliveryDates = () => {
+  const now = new Date();
+
+  const deliveryStart = new Date();
+  deliveryStart.setDate(now.getDate() + 2);
+
+  const deliveryEnd = new Date();
+  deliveryEnd.setDate(now.getDate() + 4);
+
+  return {
+    estimatedDeliveryStart: deliveryStart.toISOString(),
+    estimatedDeliveryEnd: deliveryEnd.toISOString(),
+  };
+};
+
 const createNewCart = async (
   userId: string,
   product: any,
   quantity: number,
   session: mongoose.ClientSession
-): Promise<
-  mongoose.Document<unknown, {}, ICart> &
-    ICart & { _id: mongoose.Types.ObjectId }
-> => {
+) => {
+  const { estimatedDeliveryStart, estimatedDeliveryEnd } =
+    calculateDeliveryDates();
+
   const cart = await Cart.create(
     [
       {
@@ -59,6 +74,8 @@ const createNewCart = async (
             price: product.price,
             salon: product.salon,
             host: product.host,
+            estimatedDeliveryStart: new Date(estimatedDeliveryStart),
+            estimatedDeliveryEnd: new Date(estimatedDeliveryEnd),
           },
         ],
         deliveryFee: 10,
@@ -79,162 +96,41 @@ const createNewCart = async (
   return cart[0];
 };
 
-const validateAndUpdateExistingCart = async (
-  cart: mongoose.Document<unknown, {}, ICart> & ICart & { _id: mongoose.Types.ObjectId },
-  product: any,
-  quantity: number
-) => {
-  if (
-    cart.items.length > 0 &&
-    cart.items[0].salon.toString() !== product.salon.toString()
-  ) {
+const populateCartDetails = async (cartId: mongoose.Types.ObjectId) => {
+  const populatedCart = await Cart.findById(cartId).populate([
+    {
+      path: 'items.product',
+      select: 'name images price',
+    },
+    {
+      path: 'items.salon',
+      select: 'name address',
+    },
+    {
+      path: 'items.host',
+      select: 'name email',
+    },
+  ]);
+
+  if (!populatedCart) {
     throw new ApiError(
-      StatusCodes.BAD_REQUEST,
-      'Cannot add products from different salons to the same cart'
+      StatusCodes.INTERNAL_SERVER_ERROR,
+      'Failed to retrieve cart'
     );
   }
 
-  const existingItemIndex = cart.items.findIndex(
-    item => item.product.toString() === product._id.toString()
-  );
-
-  if (existingItemIndex > -1) {
-    throw new ApiError(
-      StatusCodes.BAD_REQUEST,
-      'Product already exists in cart. Please update quantity.'
-    );
-  }
-
-  cart.items.push({
-    product: product._id,
-    quantity,
-    price: product.price,
-    salon: product.salon,
-    host: product.host,
-  });
-
-  const { totalAmount } = calculateCartSummary(cart);
-  cart.totalAmount = totalAmount;
-
-  return cart;
+  return {
+    ...populatedCart.toObject(),
+    ...calculateCartSummary(populatedCart),
+  };
 };
 
-const addToCart = async (
+// Main Cart Functions
+const addToCartMultiSalon = async (
   userId: string,
   productId: string,
   quantity: number
 ): Promise<ICart> => {
-  const session = await mongoose.startSession();
-  try {
-    session.startTransaction();
-
-    const product = await Product.findOne({ _id: productId, status: 'active' });
-    if (!product) {
-      throw new ApiError(
-        StatusCodes.NOT_FOUND,
-        'Product not found or inactive'
-      );
-    }
-
-    if (product.quantity < quantity) {
-      throw new ApiError(
-        StatusCodes.BAD_REQUEST,
-        'Insufficient product quantity'
-      );
-    }
-
-    let cart = await Cart.findOne({ user: userId, status: 'active' });
-
-    if (!cart) {
-      const newCart = await Cart.create(
-        [
-          {
-            user: userId,
-            totalAmount: product.price * quantity,
-            items: [
-              {
-                product: product._id,
-                quantity,
-                price: product.price,
-                salon: product.salon,
-                host: product.host,
-              },
-            ],
-          },
-        ],
-        { session }
-      );
-
-      if (!newCart || newCart.length === 0) {
-        throw new ApiError(
-          StatusCodes.INTERNAL_SERVER_ERROR,
-          'Failed to create cart'
-        );
-      }
-
-      cart = newCart[0];
-    } else {
-      const existingItemIndex = cart.items.findIndex(
-        item => item.product.toString() === productId
-      );
-
-      if (existingItemIndex > -1) {
-        throw new ApiError(
-          StatusCodes.BAD_REQUEST,
-          'Product already exists in cart. Please update quantity.'
-        );
-      }
-
-      cart.items.push({
-        product: product._id,
-        quantity,
-        price: product.price,
-        salon: product.salon,
-        host: product.host,
-      });
-
-      const { totalAmount } = calculateCartSummary(cart);
-      cart.totalAmount = totalAmount;
-
-      if (cart) {
-        await cart.save({ session });
-      } else {
-        throw new ApiError(StatusCodes.INTERNAL_SERVER_ERROR, 'Cart not found');
-      }
-    }
-
-    await session.commitTransaction();
-
-    const populatedCart = await Cart.findById(cart._id).populate([
-      { path: 'items.product', select: 'name images price' },
-      { path: 'items.salon', select: 'name address' },
-      { path: 'items.host', select: 'name email' },
-    ]);
-
-    if (!populatedCart) {
-      throw new ApiError(
-        StatusCodes.INTERNAL_SERVER_ERROR,
-        'Failed to retrieve cart'
-      );
-    }
-
-    return {
-      ...populatedCart.toObject(),
-      ...calculateCartSummary(populatedCart),
-    };
-  } catch (error) {
-    await session.abortTransaction();
-    throw error;
-  } finally {
-    session.endSession();
-  }
-};
-
-const addToCartFromSingleSalon = async (
-  userId: string,
-  productId: string,
-  quantity: number
-) => {
   if (!userId || !productId || !quantity) {
     throw new ApiError(StatusCodes.BAD_REQUEST, 'Missing required parameters');
   }
@@ -255,14 +151,37 @@ const addToCartFromSingleSalon = async (
     if (!cart) {
       cart = await createNewCart(userId, product, quantity, session);
     } else {
-      cart = await validateAndUpdateExistingCart(cart, product, quantity);
+      const existingItemIndex = cart.items.findIndex(
+        item => item.product.toString() === productId
+      );
+
+      if (existingItemIndex > -1) {
+        throw new ApiError(
+          StatusCodes.BAD_REQUEST,
+          'Product already exists in cart. Please update quantity.'
+        );
+      }
+
+      const { estimatedDeliveryStart, estimatedDeliveryEnd } =
+        calculateDeliveryDates();
+
+      cart.items.push({
+        product: product._id,
+        quantity,
+        price: product.price,
+        salon: product.salon,
+        host: product.host,
+        estimatedDeliveryStart: new Date(estimatedDeliveryStart),
+        estimatedDeliveryEnd: new Date(estimatedDeliveryEnd),
+      });
+
+      const { totalAmount } = calculateCartSummary(cart);
+      cart.totalAmount = totalAmount;
+
       await cart.save({ session });
     }
 
     await session.commitTransaction();
-    if (!cart) {
-      throw new ApiError(StatusCodes.INTERNAL_SERVER_ERROR, 'Failed to create or update cart');
-    }
     return await populateCartDetails(cart._id);
   } catch (error) {
     if (session.inTransaction()) {
@@ -274,24 +193,81 @@ const addToCartFromSingleSalon = async (
   }
 };
 
-const populateCartDetails = async (cartId: mongoose.Types.ObjectId) => {
-  const populatedCart = await Cart.findById(cartId).populate([
-    { path: 'items.product', select: 'name images price' },
-    { path: 'items.salon', select: 'name address' },
-    { path: 'items.host', select: 'name email' },
-  ]);
-
-  if (!populatedCart) {
+const addToCartSingleSalon = async (
+  userId: string,
+  productId: string,
+  quantity: number
+): Promise<ICart> => {
+  if (!userId || !productId || !quantity) {
+    throw new ApiError(StatusCodes.BAD_REQUEST, 'Missing required parameters');
+  }
+  if (quantity < 1) {
     throw new ApiError(
-      StatusCodes.INTERNAL_SERVER_ERROR,
-      'Failed to retrieve cart'
+      StatusCodes.BAD_REQUEST,
+      'Quantity must be greater than 0'
     );
   }
 
-  return {
-    ...populatedCart.toObject(),
-    ...calculateCartSummary(populatedCart),
-  };
+  const session = await mongoose.startSession();
+  try {
+    session.startTransaction();
+
+    const product = await validateProduct(productId, quantity);
+    let cart = await Cart.findOne({ user: userId, status: 'active' });
+
+    if (!cart) {
+      cart = await createNewCart(userId, product, quantity, session);
+    } else {
+      if (
+        cart.items.length > 0 &&
+        cart.items[0].salon.toString() !== product.salon.toString()
+      ) {
+        throw new ApiError(
+          StatusCodes.BAD_REQUEST,
+          'Cannot add products from different salons to the same cart'
+        );
+      }
+
+      const existingItemIndex = cart.items.findIndex(
+        item => item.product.toString() === productId
+      );
+
+      if (existingItemIndex > -1) {
+        throw new ApiError(
+          StatusCodes.BAD_REQUEST,
+          'Product already exists in cart. Please update quantity.'
+        );
+      }
+
+      const { estimatedDeliveryStart, estimatedDeliveryEnd } =
+        calculateDeliveryDates();
+
+      cart.items.push({
+        product: product._id,
+        quantity,
+        price: product.price,
+        salon: product.salon,
+        host: product.host,
+        estimatedDeliveryStart: new Date(estimatedDeliveryStart),
+        estimatedDeliveryEnd: new Date(estimatedDeliveryEnd),
+      });
+
+      const { totalAmount } = calculateCartSummary(cart);
+      cart.totalAmount = totalAmount;
+
+      await cart.save({ session });
+    }
+
+    await session.commitTransaction();
+    return await populateCartDetails(cart._id);
+  } catch (error) {
+    if (session.inTransaction()) {
+      await session.abortTransaction();
+    }
+    throw error;
+  } finally {
+    await session.endSession();
+  }
 };
 
 const getCart = async (userId: string): Promise<ICart | null> => {
@@ -401,8 +377,8 @@ const clearCart = async (userId: string): Promise<void> => {
 };
 
 export const CartService = {
-  addToCart,
-  addToCartFromSingleSalon,
+  addToCartMultiSalon,
+  addToCartSingleSalon,
   getCart,
   updateCartItem,
   removeCartItem,

@@ -5,11 +5,15 @@ import catchAsync from '../../../shared/catchAsync';
 import sendResponse from '../../../shared/sendResponse';
 import { CartService } from './cart.service';
 
-const addToCart = catchAsync(async (req: Request, res: Response) => {
+const addToCartMultiSalon = catchAsync(async (req: Request, res: Response) => {
   const userId = req.user.id;
   const { productId, quantity } = req.body;
 
-  const result = await CartService.addToCart(userId, productId, quantity);
+  const result = await CartService.addToCartMultiSalon(
+    userId,
+    productId,
+    quantity
+  );
 
   sendResponse(res, {
     success: true,
@@ -18,11 +22,12 @@ const addToCart = catchAsync(async (req: Request, res: Response) => {
     data: result,
   });
 });
+
 const addToCartSingleSalon = catchAsync(async (req: Request, res: Response) => {
   const userId = req.user.id;
   const { productId, quantity } = req.body;
 
-  const result = await CartService.addToCartFromSingleSalon(
+  const result = await CartService.addToCartSingleSalon(
     userId,
     productId,
     quantity
@@ -89,7 +94,7 @@ const clearCart = catchAsync(async (req: Request, res: Response) => {
 });
 
 export const CartController = {
-  addToCart,
+  addToCartMultiSalon,
   addToCartSingleSalon,
   getCart,
   updateCartItem,

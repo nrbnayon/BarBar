@@ -1,4 +1,5 @@
 // src\app\modules\order\order.validation.ts
+import { Types } from 'mongoose';
 import { z } from 'zod';
 
 const createOrderSchema = z.object({
@@ -35,9 +36,18 @@ const checkoutCartSchema = z.object({
     paymentMethod: z.enum(['cash', 'visa', 'mastercard', 'paypal']),
   }),
 });
+const confirmOrderPaymentSchema = z.object({
+  body: z.object({
+    salonId: z.string().refine(val => Types.ObjectId.isValid(val), {
+      message: 'Invalid salon ID, should be a valid salon ObjectId',
+    }),
+    paymentMethod: z.enum(['cash', 'visa', 'mastercard', 'paypal']).optional(),
+  }),
+});
 
 export const OrderValidation = {
   createOrderSchema,
   updateOrderStatusSchema,
   checkoutCartSchema,
+  confirmOrderPaymentSchema,
 };
