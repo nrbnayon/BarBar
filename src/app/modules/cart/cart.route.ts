@@ -8,6 +8,9 @@ import { CartValidation } from './cart.validation';
 
 const router = express.Router();
 
+/** ==========================
+ *  ADDING ITEMS TO CART
+ *  ========================== */
 router.post(
   '/add',
   auth(USER_ROLES.USER),
@@ -16,14 +19,20 @@ router.post(
 );
 
 router.post(
-  '/add',
+  '/add-single-salon-item',
   auth(USER_ROLES.USER),
   validateRequest(CartValidation.addToCartSchema),
   CartController.addToCartSingleSalon
 );
 
+/** ==========================
+ *  FETCHING CART DETAILS
+ *  ========================== */
 router.get('/', auth(USER_ROLES.USER), CartController.getCart);
 
+/** ==========================
+ *  UPDATING & REMOVING ITEMS
+ *  ========================== */
 router.patch(
   '/item/:productId',
   auth(USER_ROLES.USER),
@@ -37,6 +46,9 @@ router.delete(
   CartController.removeCartItem
 );
 
+/** ==========================
+ *  CLEARING THE CART
+ *  ========================== */
 router.delete('/clear', auth(USER_ROLES.USER), CartController.clearCart);
 
 export const CartRoutes = router;

@@ -280,7 +280,7 @@ const createOrderFromSingleCart = async (
 
     const cart = await Cart.findOne({ user: userId, status: 'active' })
       .populate('items.product')
-      .populate('salon')
+      .populate('items.salon')
       .populate('items.host');
 
     if (!cart || cart.items.length === 0) {

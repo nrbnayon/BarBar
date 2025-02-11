@@ -26,9 +26,9 @@ router.post(
 );
 
 router.post(
-  '/create-from-cart',
+  '/checkout-single-salon-items-cart',
   auth(USER_ROLES.USER),
-  validateRequest(OrderValidation.createOrderSchema),
+  validateRequest(OrderValidation.checkoutCartSchema),
   OrderController.createOrderFromSingleCart
 );
 
