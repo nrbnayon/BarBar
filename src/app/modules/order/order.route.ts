@@ -36,9 +36,6 @@ router.post(
  *  FETCHING ORDERS
  *  ========================== */
 
-/** ==========================
- *  FETCHING ORDERS
- *  ========================== */
 router.get('/my-orders', auth(USER_ROLES.USER), OrderController.getUserOrders);
 
 router.get(
@@ -58,23 +55,11 @@ router.get(
   auth(USER_ROLES.USER, USER_ROLES.HOST, USER_ROLES.ADMIN),
   OrderController.getOrderById
 );
-router.get('/my-orders', auth(USER_ROLES.USER), OrderController.getUserOrders);
-
-router.get(
-  '/host-orders',
-  auth(USER_ROLES.HOST),
-  OrderController.getHostOrders
-);
-
-router.get(
-  '/:orderId',
-  auth(USER_ROLES.USER, USER_ROLES.HOST, USER_ROLES.ADMIN),
-  OrderController.getOrderById
-);
 
 /** ==========================
  *  ORDER STATUS UPDATES
  *  ========================== */
+
 router.patch(
   '/:orderId/status',
   auth(USER_ROLES.HOST, USER_ROLES.ADMIN),
