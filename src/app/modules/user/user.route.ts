@@ -7,8 +7,12 @@ import { UserController } from './user.controller';
 import { UserValidation } from './user.validation';
 import getFilePath from '../../../shared/getFilePath';
 import validateRequest from '../../middlewares/validateRequest';
+
 const router = express.Router();
 
+/** ==========================
+ *  USER REGISTRATION
+ *  ========================== */
 router.post(
   '/create-user',
   fileUploadHandler(),
@@ -35,12 +39,18 @@ router.post(
   }
 );
 
+/** ==========================
+ *  USER AUTHENTICATION
+ *  ========================== */
 router.post(
   '/set-password',
   validateRequest(UserValidation.setPasswordZodSchema),
   UserController.setPassword
 );
 
+/** ==========================
+ *  PROFILE MANAGEMENT
+ *  ========================== */
 router.patch(
   '/update-profile',
   fileUploadHandler(),
@@ -74,6 +84,15 @@ router.get(
 );
 
 router.get(
+  '/profile',
+  auth(USER_ROLES.ADMIN, USER_ROLES.USER, USER_ROLES.HOST),
+  UserController.getUserProfile
+);
+
+/** ==========================
+ *  USER MANAGEMENT (ADMIN)
+ *  ========================== */
+router.get(
   '/get-all-users',
   auth(USER_ROLES.ADMIN, USER_ROLES.USER, USER_ROLES.HOST),
   UserController.getAllUser
@@ -85,20 +104,15 @@ router.get(
   UserController.getSingleUser
 );
 
-router.get(
-  '/profile',
-  auth(USER_ROLES.ADMIN, USER_ROLES.USER, USER_ROLES.HOST),
-  UserController.getUserProfile
-);
-
-// Get online users route
+/** ==========================
+ *  ONLINE STATUS MANAGEMENT
+ *  ========================== */
 router.get(
   '/online-users',
   auth(USER_ROLES.USER, USER_ROLES.ADMIN, USER_ROLES.HOST),
   UserController.getOnlineUsers
 );
 
-// Update online status route
 router.patch(
   '/online-status',
   auth(USER_ROLES.USER, USER_ROLES.ADMIN, USER_ROLES.HOST),

@@ -42,7 +42,7 @@ const apiRoutes = [
   { path: '/message', route: MessageRoutes },
   { path: '/chat', route: ChatRoutes },
   { path: '/orders', route: OrderRoutes },
-  // { path: '/incomes', route: IncomeRoutes },
+  { path: '/incomes', route: IncomeRoutes },
 ];
 
 apiRoutes.forEach(route => router.use(route.path, route.route));

@@ -252,8 +252,6 @@ const getAllUsers = async (query: Record<string, unknown>) => {
     conditions.push({ $and: filterConditions });
   }
 
-  // conditions.push({ role: USER_ROLES.USER });
-
   const whereConditions = conditions.length ? { $and: conditions } : {};
 
   // Pagination setup
@@ -268,16 +266,36 @@ const getAllUsers = async (query: Record<string, unknown>) => {
   };
 
   // Query the database
-  const [users, total] = await Promise.all([
+  const [users, total, genderStats] = await Promise.all([
     User.find(whereConditions)
       .sort(sortCondition)
       .skip(skip)
       .limit(pageSize)
       .lean<IUser[]>(),
     User.countDocuments(whereConditions),
+    User.aggregate([
+      {
+        $group: {
+          _id: '$gender',
+          count: { $sum: 1 },
+        },
+      },
+    ]),
   ]);
 
-  // Format the `updatedAt` field
+  // Calculate gender ratios
+  const totalUsers = genderStats.reduce((acc, curr) => acc + curr.count, 0);
+  const genderRatio = genderStats.reduce((acc, { _id, count }) => {
+    if (_id) {
+      acc[_id] = {
+        count,
+        percentage: ((count / totalUsers) * 100).toFixed(2) + '%',
+      };
+    }
+    return acc;
+  }, {} as Record<string, { count: number; percentage: string }>);
+
+  // Format the updatedAt field
   const formattedUsers = users?.map(user => ({
     ...user,
     updatedAt: user.updatedAt
@@ -285,17 +303,19 @@ const getAllUsers = async (query: Record<string, unknown>) => {
       : null,
   }));
 
-  // Meta information for pagination
+  // Meta information for pagination and gender stats
   return {
     meta: {
       total,
       limit: pageSize,
       totalPages: Math.ceil(total / pageSize),
       currentPage,
+      genderRatio,
     },
     result: formattedUsers,
   };
 };
+
 
 const getUserProfileFromDB = async (
   user: JwtPayload
@@ -312,7 +332,9 @@ const getUserProfileFromDB = async (
 const updateProfileToDB = async (
   user: JwtPayload,
   payload: Partial<IUser>
-): Promise<Partial<IUser | null>> => {
+): Promise<
+  Partial<IUser | null> | { verificationRequired: boolean; message: string }
+> => {
   const { id } = user;
   const isExistUser = await User.isExistUserById(id);
 
@@ -320,20 +342,93 @@ const updateProfileToDB = async (
     throw new ApiError(StatusCodes.BAD_REQUEST, "User doesn't exist!");
   }
 
-  if (!isExistUser) {
-    throw new ApiError(StatusCodes.NOT_FOUND, 'Blog not found');
+  // Check if email or phone is being updated
+  const needsVerification = payload.email || payload.phone;
+
+  if (needsVerification) {
+    // Check if new email already exists
+    if (payload.email) {
+      const emailExists = await User.findOne({
+        email: payload.email,
+        _id: { $ne: id }, // Exclude current user
+      });
+
+      if (emailExists) {
+        throw new ApiError(
+          StatusCodes.CONFLICT,
+          'Email already exists. Please use a different email address.'
+        );
+      }
+    }
+
+    // Check if new phone already exists
+    if (payload.phone) {
+      const phoneExists = await User.findOne({
+        phone: payload.phone,
+        _id: { $ne: id }, // Exclude current user
+      });
+
+      if (phoneExists) {
+        throw new ApiError(
+          StatusCodes.CONFLICT,
+          'Phone number already exists. Please use a different number.'
+        );
+      }
+    }
+
+    // Generate OTP for verification
+    const otp = generateOTP();
+    const authentication = {
+      oneTimeCode: otp,
+      expireAt: new Date(Date.now() + 3 * 60000), // 3 minutes
+      isResetPassword: false,
+    };
+
+    // Store the pending changes and authentication data
+    const pendingChanges = {
+      ...(payload.email && { email: payload.email }),
+      ...(payload.phone && { phone: payload.phone }),
+      authentication,
+      verified: false,
+      status: 'pending',
+    };
+
+    // Send OTP to new email if email is being updated
+    if (payload.email) {
+      const emailValues = {
+        name: isExistUser.name,
+        otp,
+        email: payload.email,
+      };
+      const verificationEmailTemplate =
+        emailTemplate.createAccount(emailValues);
+      await emailHelper.sendEmail(verificationEmailTemplate);
+    }
+
+    // Update user with pending changes
+    await User.findOneAndUpdate({ _id: id }, pendingChanges, { new: true });
+
+    return {
+      verificationRequired: true,
+      message:
+        'Please verify your new contact information with the OTP sent to your email.',
+    };
   }
 
+  // Handle image update
   if (payload.image && isExistUser.image) {
     unlinkFile(isExistUser.image);
   }
 
+  // Process normal update without verification
   const updateDoc = await User.findOneAndUpdate({ _id: id }, payload, {
     new: true,
   });
 
   return updateDoc;
 };
+
+
 
 const getSingleUser = async (id: string): Promise<IUser | null> => {
   const result = await User.findById(id);
@@ -345,7 +440,7 @@ const getOnlineUsers = async () => {
     const onlineUsers = await User.find({
       onlineStatus: true,
       lastActiveAt: {
-        $gte: new Date(Date.now() - 5 * 60 * 1000), // Active in last 5 minutes
+        $gte: new Date(Date.now() - 5 * 60 * 1000), 
       },
     }).select('name email profileImage');
 
