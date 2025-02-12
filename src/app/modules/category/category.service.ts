@@ -1,7 +1,9 @@
 import { StatusCodes } from 'http-status-codes';
+import { SortOrder } from 'mongoose';
 import ApiError from '../../../errors/ApiError';
 import { ICategory } from './category.interface';
 import { Category } from './category.model';
+import { paginationHelper } from '../../../helpers/paginationHelper';
 
 const createCategoryToDB = async (payload: Partial<ICategory>) => {
   // console.log('Creating category payload...', payload);
@@ -19,16 +21,112 @@ const createCategoryToDB = async (payload: Partial<ICategory>) => {
   return result;
 };
 
-const getAllCategory = async () => {
-  const result = await Category.find({ status: 'active' }).sort({
-    createdAt: -1,
-  });
+const getAllCategory = async (query: Record<string, unknown>) => {
+  const {
+    searchTerm,
+    page = 1,
+    limit = 10,
+    sortBy = 'createdAt',
+    sortOrder = 'desc',
+    ...filterData
+  } = query;
 
-  if (!result) {
-    throw new ApiError(StatusCodes.NOT_FOUND, 'Category not found!');
+  // Search conditions
+  const conditions: any[] = [];
+
+  // Add default status condition
+  conditions.push({ status: 'active' });
+
+  if (searchTerm) {
+    conditions.push({
+      $or: [{ name: { $regex: searchTerm, $options: 'i' } }],
+    });
   }
 
-  return result;
+  // Add filter conditions
+  if (Object.keys(filterData).length > 0) {
+    const filterConditions = Object.entries(filterData).map(
+      ([field, value]) => ({
+        [field]: value,
+      })
+    );
+    conditions.push({ $and: filterConditions });
+  }
+
+  const whereConditions = conditions.length > 0 ? { $and: conditions } : {};
+
+  // Pagination setup
+  const {
+    skip,
+    limit: limitData,
+    page: pageData,
+  } = paginationHelper.calculatePagination({
+    page: Number(page),
+    limit: Number(limit),
+    sortBy: sortBy as string,
+    sortOrder: sortOrder as 'asc' | 'desc',
+  });
+
+  // Sorting setup
+  const sortConditions: { [key: string]: SortOrder } = {
+    [sortBy as string]: sortOrder === 'desc' ? -1 : 1,
+  };
+
+  // Execute queries in parallel
+  const [categories, total] = await Promise.all([
+    Category.find(whereConditions)
+      .sort(sortConditions)
+      .skip(skip)
+      .limit(limitData)
+      .lean(),
+    Category.countDocuments(whereConditions),
+  ]);
+
+  // Format dates and process data
+  const formattedCategories = categories.map(category => ({
+    ...category,
+    createdAt: category.createdAt
+      ? new Date(category.createdAt).toISOString().split('T')[0]
+      : null,
+    updatedAt: category.updatedAt
+      ? new Date(category.updatedAt).toISOString().split('T')[0]
+      : null,
+  }));
+
+  // Calculate status statistics
+  const statusStats = await Category.aggregate([
+    {
+      $group: {
+        _id: '$status',
+        count: { $sum: 1 },
+      },
+    },
+  ]);
+
+  const totalCategories = statusStats.reduce(
+    (acc, curr) => acc + curr.count,
+    0
+  );
+  const statusRatio = statusStats.reduce((acc, { _id, count }) => {
+    if (_id) {
+      acc[_id] = {
+        count,
+        percentage: ((count / totalCategories) * 100).toFixed(2) + '%',
+      };
+    }
+    return acc;
+  }, {} as Record<string, { count: number; percentage: string }>);
+
+  return {
+    meta: {
+      page: pageData,
+      limit: limitData,
+      total,
+      totalPages: Math.ceil(total / limitData),
+      statusRatio,
+    },
+    data: formattedCategories,
+  };
 };
 
 const getSingleCategory = async (id: string) => {

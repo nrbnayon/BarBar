@@ -18,7 +18,7 @@ const createCategoryToDB = catchAsync(
 );
 
 const getAllCategory = catchAsync(async (req: Request, res: Response) => {
-  const result = await CategoryService.getAllCategory();
+  const result = await CategoryService.getAllCategory(req.query);
   sendResponse(res, {
     success: true,
     statusCode: StatusCodes.OK,

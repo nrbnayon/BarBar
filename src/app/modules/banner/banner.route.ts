@@ -9,9 +9,11 @@ import getFilePath from '../../../shared/getFilePath';
 
 const router = express.Router();
 
-/**
- * Create a new Banner
- */
+/**=================================================================
+ * @route POST /create-banner
+ * @desc Create a new Banner (Admin only)
+ * @access Private (Admin)
+ =================================================================**/
 router.post(
   '/create-banner',
   fileUploadHandler(),
@@ -29,7 +31,7 @@ router.post(
           bannerData.image = imagePath;
         }
       }
-      // console.log('New creating banner data: ', bannerData);
+
       const validatedData =
         bannerValidation.createBannerSchema.parse(bannerData);
       req.body = validatedData;
@@ -41,23 +43,29 @@ router.post(
   }
 );
 
-/**
- * Get all Banners
- */
+/**=================================================================
+ * @route GET /
+ * @desc Get all Banners (Admin, User, and Host access)
+ * @access Private (Admin, User, Host)
+ =================================================================**/
 router.get(
   '/',
   auth(USER_ROLES.ADMIN, USER_ROLES.USER, USER_ROLES.HOST),
   BannerController.getAllBanners
 );
 
-/**
- * Get a single Banner by ID
- */
+/**=================================================================
+ * @route GET /:id
+ * @desc Get a single Banner by ID
+ * @access Public
+ =================================================================**/
 router.get('/:id', BannerController.getSingleBanner);
 
-/**
- * Update a Banner by ID
- */
+/**=================================================================
+ * @route PATCH /:id
+ * @desc Update a Banner by ID (Admin only)
+ * @access Private (Admin)
+ =================================================================**/
 router.patch(
   '/:id',
   fileUploadHandler(),
@@ -84,9 +92,11 @@ router.patch(
   }
 );
 
-/**
- * Delete a Banner by ID
- */
+/**=================================================================
+ * @route DELETE /:id
+ * @desc Delete a Banner by ID (Admin only)
+ * @access Private (Admin)
+ =================================================================**/
 router.delete('/:id', auth(USER_ROLES.ADMIN), BannerController.deleteBanner);
 
 export const BannerRoutes = router;

@@ -67,6 +67,7 @@ const updateProfile = catchAsync(
     });
   }
 );
+
 const getAllUser = catchAsync(async (req: Request, res: Response) => {
   const result = await UserService.getAllUsers(req.query);
 

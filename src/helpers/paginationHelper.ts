@@ -1,3 +1,4 @@
+// src\helpers\paginationHelper.ts
 import { IPaginationOptions } from '../types/pagination';
 
 const calculatePagination = (options: IPaginationOptions) => {
