@@ -19,7 +19,7 @@ const createBanner = catchAsync(
 );
 
 const getAllBanners = catchAsync(async (req: Request, res: Response) => {
-  const result = await BannerService.getAllBanners();
+  const result = await BannerService.getAllBanners(req.query);
   sendResponse(res, {
     success: true,
     statusCode: StatusCodes.OK,
