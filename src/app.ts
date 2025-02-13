@@ -1,10 +1,11 @@
+// src\app.ts
 import cors from 'cors';
 import express, { Request, Response } from 'express';
 import { StatusCodes } from 'http-status-codes';
 import globalErrorHandler from './app/middlewares/globalErrorHandler';
 import router from './routes';
 import { Morgan } from './shared/morgen';
-import { PaymentController } from './app/modules/payment/payment.controller';
+import { PaymentController } from './app/modules/paytoadmin/payment.controller';
 
 const app = express();
 
@@ -24,16 +25,21 @@ app.use(
       'http://10.0.70.173:5173',
       'http://10.0.70.172:5173',
       'http://10.0.70.173:50262',
+      'http://localhost:4000',
     ],
     credentials: true,
   })
 );
 
-// Webhook route (before body parser)
 app.post(
   '/webhook',
   express.raw({ type: 'application/json' }),
-  PaymentController.stripeWebhookController
+  async (req, res, next) => {
+    console.log(`Incoming Request: ${req.method} ${req.url}`);
+    (req as any).rawBody = req.body;
+    next();
+  },
+  PaymentController.handleWebhook
 );
 
 // Body parser with increased limits
