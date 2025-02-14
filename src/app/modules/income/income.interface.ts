@@ -9,12 +9,13 @@ export type TimePeriod = 'daily' | 'weekly' | 'monthly' | 'yearly';
 export interface IIncome {
   salon: Types.ObjectId;
   host: Types.ObjectId;
-  order: Types.ObjectId;
+  order?: Types.ObjectId;
   confirmBy?: {
     _id: Types.ObjectId;
     name: string;
     email: string;
   };
+  appointment?: Types.ObjectId;
   type: IncomeType;
   amount: number;
   status: IncomeStatus;

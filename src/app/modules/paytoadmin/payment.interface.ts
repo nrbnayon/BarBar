@@ -1,14 +1,46 @@
-// src\app\modules\paytoadmin\payment.interface.ts
-import { Model, Types } from 'mongoose';
+// src/app/modules/paytoadmin/payment.interface.ts
+import { Types } from 'mongoose';
 
-export type PaymentStatus = 'pending' | 'completed' | 'failed' | 'refunded';
-export type PaymentType = 'appointment' | 'product';
-export type PaymentMethod = 'cash' |'card'| 'visa' | 'mastercard' | 'paypal';
+export enum PaymentMethod {
+  CARD = 'card',
+  VISA = 'visa',
+  MASTERCARD = 'mastercard',
+  PAYPAL = 'paypal',
+}
+
+export enum PaymentStatus {
+  PENDING = 'pending',
+  PROCESSING = 'processing',
+  COMPLETED = 'completed',
+  FAILED = 'failed',
+  REFUNDED = 'refunded',
+  CANCELLED = 'cancelled',
+}
+
+export enum PaymentType {
+  APPOINTMENT = 'appointment',
+  ORDER = 'order',
+}
+
+export interface IUser {
+  _id: Types.ObjectId;
+  email: string;
+  name: string;
+}
+
+export interface IPaymentIntent {
+  userId: string;
+  userEmail: string;
+  userName: string;
+  type: PaymentType;
+  itemId: string;
+  paymentMethod: PaymentMethod;
+}
 
 export interface IPayment {
   _id?: Types.ObjectId;
-  user: Types.ObjectId;
-  host: Types.ObjectId;
+  user: Types.ObjectId | IUser;
+  host: Types.ObjectId | IUser;
   order?: Types.ObjectId;
   appointment?: Types.ObjectId;
   amount: number;
@@ -18,18 +50,32 @@ export interface IPayment {
   paymentMethod: PaymentMethod;
   status: PaymentStatus;
   paymentDate?: Date;
-  metadata?: Record<string, any>;
+  metadata?: Map<string, any>;
   adminCommission?: number;
   hostAmount?: number;
-  transferredToHost?: boolean;
+  transferredToHost: boolean;
   transferDate?: Date;
   createdAt?: Date;
   updatedAt?: Date;
 }
 
-export interface PaymentModel extends Model<IPayment> {
-  calculateCommission(amount: number): {
-    adminCommission: number;
-    hostAmount: number;
+export interface IStripeWebhookEvent {
+  id: string;
+  object: string;
+  api_version: string;
+  created: number;
+  data: {
+    object: Record<string, any>;
+  };
+  type: string;
+}
+
+export interface IPaymentResponse {
+  success: boolean;
+  message: string;
+  data: {
+    clientSecret: string;
+    paymentId: Types.ObjectId;
+    customerId: string;
   };
 }

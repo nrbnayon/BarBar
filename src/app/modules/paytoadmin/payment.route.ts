@@ -15,6 +15,12 @@ router.post(
   PaymentController.createPaymentIntent
 );
 
+router.post(
+  '/create-checkout-session',
+  auth(USER_ROLES.USER),
+  PaymentController.createCheckoutSession
+);
+
 router.get(
   '/history',
   auth(USER_ROLES.USER, USER_ROLES.HOST, USER_ROLES.ADMIN),

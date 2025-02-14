@@ -28,6 +28,8 @@ export default {
   payment: {
     stripe_secret_key: process.env.STRIPE_SECRET_KEY,
     stripe_webhook_secret: process.env.STRIPE_WEBHOOK_SECRET,
+    stripe_webhook_cli_secret: process.env.STRIPE_WEBHOOK_CLI_SECRET,
+    stripe_payment_success_link: process.env.STRIPE_PAYMENT_SUCCESS_LINK,
     card_encryption_key: process.env.CARD_ENCRYPTION_KEY,
   },
   email: {

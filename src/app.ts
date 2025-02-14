@@ -1,6 +1,5 @@
-// src\app.ts
-import cors from 'cors';
 import express, { Request, Response } from 'express';
+import cors from 'cors';
 import { StatusCodes } from 'http-status-codes';
 import globalErrorHandler from './app/middlewares/globalErrorHandler';
 import router from './routes';
@@ -9,11 +8,11 @@ import { PaymentController } from './app/modules/paytoadmin/payment.controller';
 
 const app = express();
 
-// Morgan
+// Morgan Logging
 app.use(Morgan.successHandler);
 app.use(Morgan.errorHandler);
 
-// CORS
+// CORS Setup
 app.use(
   cors({
     origin: [
@@ -31,38 +30,34 @@ app.use(
   })
 );
 
+// ⚠️ Webhook MUST use express.raw()
 app.post(
   '/webhook',
   express.raw({ type: 'application/json' }),
-  async (req, res, next) => {
-    console.log(`Incoming Request: ${req.method} ${req.url}`);
-    (req as any).rawBody = req.body;
-    next();
-  },
   PaymentController.handleWebhook
 );
 
-// Body parser with increased limits
+// ✅ JSON Middleware (ONLY AFTER Webhook Route)
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
 // Static file serving
 app.use(express.static('uploads'));
 
-// Routes
+// API Routes
 app.use('/api/v1', router);
 
-// Home route
+// Home Route
 app.get('/', (req: Request, res: Response) => {
   res.send(
     '<h1 style="text-align:center; color:#A55FEF; font-family:Verdana;">Hey Frontend Developer, How can I assist you today!</h1>'
   );
 });
 
-// Error handling
+// Global Error Handling
 app.use(globalErrorHandler);
 
-// Handle not found routes
+// Handle 404 Routes
 app.use((req, res) => {
   res.status(StatusCodes.NOT_FOUND).json({
     success: false,

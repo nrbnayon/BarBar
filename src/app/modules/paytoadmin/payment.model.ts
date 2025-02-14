@@ -1,89 +1,101 @@
-// src\app\modules\paytoadmin\payment.model.ts
-import { Schema, model } from 'mongoose';
-import { IPayment, PaymentModel } from './payment.interface';
+// src/app/modules/paytoadmin/payment.model.ts
+import { Schema, model, Model } from 'mongoose';
+import {
+  IPayment,
+  PaymentStatus,
+  PaymentMethod,
+  PaymentType,
+} from './payment.interface';
 
-const paymentSchema = new Schema<IPayment, PaymentModel>(
+interface IPaymentModel extends Model<IPayment> {
+  calculateCommission(amount: number): {
+    adminCommission: number;
+    hostAmount: number;
+  };
+}
+
+const paymentSchema = new Schema<IPayment, IPaymentModel>(
   {
     user: {
       type: Schema.Types.ObjectId,
       ref: 'User',
       required: true,
+      index: true,
     },
     host: {
       type: Schema.Types.ObjectId,
       ref: 'User',
       required: true,
+      index: true,
     },
     order: {
       type: Schema.Types.ObjectId,
       ref: 'Order',
+      index: true,
     },
     appointment: {
       type: Schema.Types.ObjectId,
       ref: 'Appointment',
+      index: true,
     },
     amount: {
       type: Number,
       required: true,
+      min: 0.5, // Minimum amount in dollars
     },
     stripePaymentIntentId: {
       type: String,
       required: true,
       unique: true,
+      index: true,
     },
     stripeCustomerId: {
       type: String,
+      index: true,
     },
     paymentType: {
       type: String,
-      enum: ['appointment', 'product'],
+      enum: Object.values(PaymentType),
       required: true,
     },
     paymentMethod: {
       type: String,
-      enum: ['cash', 'card', 'visa', 'mastercard', 'paypal'],
+      enum: Object.values(PaymentMethod),
       required: true,
     },
     status: {
       type: String,
-      enum: ['pending', 'completed', 'failed', 'refunded'],
-      default: 'pending',
+      enum: Object.values(PaymentStatus),
+      default: PaymentStatus.PENDING,
     },
-    paymentDate: {
-      type: Date,
-    },
+    paymentDate: Date,
     metadata: {
       type: Map,
       of: Schema.Types.Mixed,
     },
-    adminCommission: {
-      type: Number,
-    },
-    hostAmount: {
-      type: Number,
-    },
+    adminCommission: Number,
+    hostAmount: Number,
     transferredToHost: {
       type: Boolean,
       default: false,
     },
-    transferDate: {
-      type: Date,
-    },
+    transferDate: Date,
   },
   {
     timestamps: true,
-    toJSON: {
-      virtuals: true,
-    },
+    toJSON: { virtuals: true },
   }
 );
 
-// Static method to calculate commission
+// Indexes for common queries
+paymentSchema.index({ createdAt: -1 });
+paymentSchema.index({ status: 1, paymentType: 1 });
+
 paymentSchema.statics.calculateCommission = function (amount: number) {
-  const adminCommissionRate = 0.1; // 10% commission
-  const adminCommission = amount * adminCommissionRate;
-  const hostAmount = amount - adminCommission;
+  const adminCommissionRate = 0.1;
+  const adminCommission = Number((amount * adminCommissionRate).toFixed(2));
+  const hostAmount = Number((amount - adminCommission).toFixed(2));
   return { adminCommission, hostAmount };
 };
 
-export const Payment = model<IPayment, PaymentModel>('Payment', paymentSchema);
+export const Payment = model<IPayment, IPaymentModel>('Payment', paymentSchema);

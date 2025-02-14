@@ -1,8 +1,13 @@
 // src\config\stripe.ts
 import Stripe from 'stripe';
+import { logger } from '../shared/logger';
 
 if (!process.env.STRIPE_SECRET_KEY) {
   throw new Error('STRIPE_SECRET_KEY must be defined');
+}
+
+if (!process.env.STRIPE_WEBHOOK_SECRET) {
+  throw new Error('STRIPE_WEBHOOK_SECRET must be defined');
 }
 
 export const stripe = new Stripe(process.env.STRIPE_SECRET_KEY, {
@@ -10,5 +15,4 @@ export const stripe = new Stripe(process.env.STRIPE_SECRET_KEY, {
   typescript: true,
 });
 
-// Log configuration status
-console.log('✅ Stripe configuration initialized');
+logger.info('✅ Stripe configuration initialized');
