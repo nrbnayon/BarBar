@@ -60,7 +60,7 @@ const paymentSchema = new Schema<IPayment>(
     products: [productWithQuantitySchema],
     paymentMethod: {
       type: String,
-      enum: ['cash', 'visa', 'mastercard', 'paypal'],
+      enum: ['cash', 'card', 'visa', 'mastercard', 'paypal'],
       required: true,
     },
     cardId: {

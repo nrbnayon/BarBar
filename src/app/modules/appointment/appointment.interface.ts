@@ -4,7 +4,7 @@ import { Model, Types } from 'mongoose';
 import { ISalon } from '../salons/salon.interface';
 import { IPayment } from '../payment/payment.interface';
 
-export type PaymentMethod = 'cash' | 'visa' | 'mastercard' | 'paypal';
+export type PaymentMethod = 'cash' | 'card' | 'visa' | 'mastercard' | 'paypal';
 
 export type PaymentInfo = {
   method: PaymentMethod;

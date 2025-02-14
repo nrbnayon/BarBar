@@ -14,7 +14,7 @@ const createOrderSchema = z.object({
         host: z.string(),
       })
     ),
-    paymentMethod: z.enum(['cash', 'visa', 'mastercard', 'paypal']),
+    paymentMethod: z.enum(['cash', 'card', 'visa', 'mastercard', 'paypal']),
   }),
 });
 

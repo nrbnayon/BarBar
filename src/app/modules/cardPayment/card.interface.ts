@@ -1,7 +1,7 @@
 // src\app\modules\cardPayment\card.interface.ts
 import { Model, Types } from 'mongoose';
 
-export type CardType = 'visa' | 'mastercard' | 'paypal';
+export type CardType = 'visa' | 'card'| 'mastercard' | 'paypal';
 
 export type ICard = {
   user: Types.ObjectId;

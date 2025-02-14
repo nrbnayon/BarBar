@@ -7,7 +7,7 @@ const createPaymentIntentSchema = z.object({
     itemId: z.string({
       required_error: 'Item ID is required',
     }),
-    paymentMethod: z.enum(['visa', 'mastercard', 'paypal'], {
+    paymentMethod: z.enum(['card', 'visa', 'mastercard', 'paypal'], {
       required_error: 'Payment method is required',
       invalid_type_error: 'Invalid payment method',
     }),

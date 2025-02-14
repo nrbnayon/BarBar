@@ -24,7 +24,7 @@ const cardSchema = new Schema<ICard>(
     },
     cardType: {
       type: String,
-      enum: ['visa', 'mastercard', 'paypal'],
+      enum: ['card', 'visa', 'mastercard', 'paypal'],
       required: true,
     },
     expiryDate: {

@@ -75,7 +75,7 @@ const orderSchema = new Schema<IOrder, OrderModel>(
     },
     paymentMethod: {
       type: String,
-      enum: ['cash', 'visa', 'mastercard', 'paypal'],
+      enum: ['cash', 'card', 'visa', 'mastercard', 'paypal'],
       required: true,
     },
     status: {

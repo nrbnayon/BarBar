@@ -13,7 +13,7 @@ const cardValidationSchema = z.object({
           required_error: 'Card number is required',
         })
         .refine(num => /^[0-9]{16}$/.test(num), 'Invalid card number format'),
-      cardType: z.enum(['visa', 'mastercard', 'paypal']),
+      cardType: z.enum(['card', 'visa', 'mastercard', 'paypal']),
       expiryDate: z
         .string({
           required_error: 'Expiry date is required',

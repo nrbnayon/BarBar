@@ -3,7 +3,7 @@ import { Model, Types } from 'mongoose';
 
 export type PaymentStatus = 'pending' | 'completed' | 'failed' | 'refunded';
 export type PaymentType = 'appointment' | 'product';
-export type PaymentMethod = 'cash' | 'visa' | 'mastercard' | 'paypal';
+export type PaymentMethod = 'cash' |'card'| 'visa' | 'mastercard' | 'paypal';
 
 export interface IPayment {
   _id?: Types.ObjectId;

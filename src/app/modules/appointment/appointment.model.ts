@@ -10,7 +10,7 @@ import { timeUtils } from '../../../util/timeConverter';
 const paymentInfoSchema = new Schema({
   method: {
     type: String,
-    enum: ['cash', 'visa', 'mastercard', 'paypal'],
+    enum: ['cash', 'card', 'visa', 'mastercard', 'paypal'],
   },
   status: {
     type: String,

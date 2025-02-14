@@ -21,7 +21,7 @@ const createAppointmentZodSchema = z.object({
         message: 'Invalid time format. Use 24-hour format (HH:MM)',
       }),
       payment: z.object({
-        method: z.enum(['cash', 'visa', 'mastercard', 'paypal']),
+        method: z.enum(['cash','card', 'visa', 'mastercard', 'paypal']),
       }),
       notes: z.string().optional(),
     })
@@ -66,7 +66,7 @@ const rescheduleAppointmentZodSchema = z.object({
 const processPaymentZodSchema = z.object({
   body: z
     .object({
-      method: z.enum(['cash', 'visa', 'mastercard', 'paypal']),
+      method: z.enum(['cash', 'card', 'visa', 'mastercard', 'paypal']),
       cardNumber: z.string().optional(),
       cardHolderName: z.string().optional(),
       expiryDate: z.string().optional(),

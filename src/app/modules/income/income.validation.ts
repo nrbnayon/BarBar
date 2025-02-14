@@ -27,7 +27,7 @@ const createIncomeSchema = z.object({
         required_error: 'Amount is required',
       })
       .min(0),
-    paymentMethod: z.enum(['cash', 'visa', 'mastercard', 'paypal'], {
+    paymentMethod: z.enum(['cash', 'card', 'visa', 'mastercard', 'paypal'], {
       required_error: 'Payment method is required',
     }),
     transactionDate: z.string().or(z.date()),

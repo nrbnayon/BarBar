@@ -7,7 +7,7 @@ const createPaymentSchema = z.object({
     cartId: z.string({
       required_error: 'Cart ID is required',
     }),
-    paymentMethod: z.enum(['cash', 'visa', 'mastercard', 'paypal'], {
+    paymentMethod: z.enum(['cash', 'card', 'visa', 'mastercard', 'paypal'], {
       required_error: 'Payment method is required',
     }),
     cardId: z.string().optional(),
