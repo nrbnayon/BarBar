@@ -1,5 +1,4 @@
 // src/app/modules/paytoadmin/payment.controller.ts
-// src/app/modules/paytoadmin/payment.controller.ts
 import { Request, Response } from 'express';
 import { StatusCodes } from 'http-status-codes';
 import catchAsync from '../../../shared/catchAsync';
@@ -8,8 +7,9 @@ import { stripe } from '../../../config/stripe';
 import sendResponse from '../../../shared/sendResponse';
 import { Order } from '../order/order.model';
 import ApiError from '../../../errors/ApiError';
-import { PaymentMethod } from '../../../enums/common';
 import { logger } from '../../../shared/logger';
+import { PaymentMethod } from './payment.interface';
+import config from '../../../config';
 
 const createPaymentIntent = catchAsync(async (req: Request, res: Response) => {
   const userId = req.user.id;
@@ -67,6 +67,26 @@ const createPaymentIntent = catchAsync(async (req: Request, res: Response) => {
   });
 });
 
+// const handleWebhook = async (req: Request, res: Response) => {
+//   const sig = req.headers['stripe-signature'];
+
+//   try {
+//     const event = stripe.webhooks.constructEvent(
+//       req.body,
+//       sig as string,
+//       config.payment.stripe_webhook_cli_secret as string
+//     );
+
+//     if (event.type === 'payment_intent.succeeded') {
+//       await PaymentService.handleSuccessfulPayment(event.data.object);
+//     }
+
+//     res.status(200).json({ received: true });
+//   } catch (err) {
+//     res.status(400).send(`Webhook Error: ${(err as Error).message}`);
+//   }
+// };
+
 const handleWebhook = async (req: Request, res: Response) => {
   const sig = req.headers['stripe-signature'];
 
@@ -93,9 +113,21 @@ const handleWebhook = async (req: Request, res: Response) => {
 
 const createCheckoutSession = async (req: Request, res: Response) => {
   try {
-    const { userId, userEmail } = req.user;
-    const { type, itemId, successUrl, cancelUrl } = req.body;
+    logger.info('Received checkout session request', {
+      body: req.body,
+      user: req.user,
+    });
 
+    const { type, itemId, successUrl, cancelUrl } = req.body;
+    const { id: userId, email: userEmail } = req.user;
+
+    // Validate required fields
+    if (!type || !itemId || !successUrl || !cancelUrl) {
+      logger.error('Missing required fields', { body: req.body });
+      throw new ApiError(StatusCodes.BAD_REQUEST, 'Missing required fields');
+    }
+
+    // Create checkout session
     const session = await PaymentService.createCheckoutSession({
       userId,
       userEmail,
@@ -105,10 +137,32 @@ const createCheckoutSession = async (req: Request, res: Response) => {
       cancelUrl,
     });
 
-    res.json({ url: session.url });
+    logger.info('Checkout session created successfully', {
+      sessionId: session.id,
+      userId,
+    });
+
+    // Send response
+    return res.status(StatusCodes.OK).json({
+      success: true,
+      message: 'Checkout session created successfully',
+      url: session.url,
+    });
   } catch (error) {
-    logger.error('Error creating checkout session', { error });
-    throw error;
+    logger.error('Error in createCheckoutSession controller', {
+      error: error instanceof Error ? error.message : 'Unknown error',
+      user: req.user,
+      body: req.body,
+    });
+
+    if (error instanceof ApiError) {
+      throw error;
+    }
+
+    throw new ApiError(
+      StatusCodes.INTERNAL_SERVER_ERROR,
+      'Failed to create checkout session'
+    );
   }
 };
 
@@ -124,8 +178,7 @@ const getPaymentHistory = catchAsync(async (req: Request, res: Response) => {
   });
 });
 
-
-export const PaymentController = { 
+export const PaymentController = {
   createPaymentIntent,
   handleWebhook,
   getPaymentHistory,
