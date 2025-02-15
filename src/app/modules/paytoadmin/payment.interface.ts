@@ -46,7 +46,7 @@ export interface IPayment {
   amount: number;
   stripePaymentIntentId: string;
   stripeCustomerId?: string;
-  paymentType: PaymentType;
+  type?: PaymentType;
   paymentMethod: PaymentMethod;
   status: PaymentStatus;
   paymentDate?: Date;

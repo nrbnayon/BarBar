@@ -12,6 +12,7 @@ import { Income } from '../income/income.model';
 import { User } from '../user/user.model';
 import { PaymentMethod, PaymentStatus, PaymentType } from './payment.interface';
 import { logger } from '../../../shared/logger';
+import { Product } from '../product/product.model';
 
 const createPaymentIntent = async (
   userId: string,
@@ -21,19 +22,6 @@ const createPaymentIntent = async (
   itemId: string,
   paymentMethod: PaymentMethod
 ) => {
-  console.log(
-    'New card payment intent::',
-    'User:',
-    userId,
-    'User Email:',
-    userEmail,
-    'User name:',
-    userName,
-    'Order type:',
-    type,
-    'Item id:',
-    itemId
-  );
   const session = await mongoose.startSession();
   try {
     session.startTransaction();
@@ -68,11 +56,49 @@ const createPaymentIntent = async (
         );
       }
 
-      if (order.paymentStatus !== 'pending') {
+      // Verify payment method matches order
+      if (order.paymentMethod === 'cash') {
         throw new ApiError(
           StatusCodes.BAD_REQUEST,
-          'Order is not pending payment'
+          'Cannot create payment intent for cash orders'
         );
+      }
+
+      // Check payment status
+      if (
+        order.paymentStatus === 'paid' ||
+        order.paymentStatus === 'completed'
+      ) {
+        throw new ApiError(
+          StatusCodes.BAD_REQUEST,
+          'This order has already been paid'
+        );
+      }
+
+      if (order.status === 'cancelled' || order.status === 'refunded') {
+        throw new ApiError(
+          StatusCodes.BAD_REQUEST,
+          'Cannot process payment for cancelled or refunded orders'
+        );
+      }
+
+      // Verify all items are still available
+      for (const salonOrder of order.salonOrders) {
+        for (const item of salonOrder.items) {
+          const product = await Product.findById(item.product);
+          if (!product) {
+            throw new ApiError(
+              StatusCodes.NOT_FOUND,
+              `Product not found: ${item.product}`
+            );
+          }
+          if (product.quantity < (item.quantity || 0)) {
+            throw new ApiError(
+              StatusCodes.BAD_REQUEST,
+              `Insufficient quantity for product: ${product.name}`
+            );
+          }
+        }
       }
 
       amount = order.totalAmount * 100;
@@ -87,7 +113,8 @@ const createPaymentIntent = async (
         if (so.salon instanceof mongoose.Types.ObjectId) {
           throw new ApiError(StatusCodes.NOT_FOUND, 'Salon not populated');
         }
-        metadata[`salon_${index}_name`] = (so.salon as ISalon).name || 'Salon Name';
+        metadata[`salon_${index}_name`] =
+          (so.salon as ISalon).name || 'Salon Name';
       });
       metadata.salonOrdersCount = order.salonOrders.length.toString();
     } else {
@@ -113,10 +140,32 @@ const createPaymentIntent = async (
         );
       }
 
-      if (appointment.payment.status !== 'pending') {
+      // Verify payment method
+      if ('method' in appointment.payment && appointment.payment.method === 'cash') {
         throw new ApiError(
           StatusCodes.BAD_REQUEST,
-          'Appointment is not pending payment'
+          'Cannot create payment intent for cash appointments'
+        );
+      }
+
+      // Check payment status
+      if (
+        appointment.payment.status === 'paid' ||
+        appointment.payment.status === 'completed'
+      ) {
+        throw new ApiError(
+          StatusCodes.BAD_REQUEST,
+          'This appointment has already been paid'
+        );
+      }
+
+      if (
+        appointment.status === 'cancelled' ||
+        appointment.status === 'refunded'
+      ) {
+        throw new ApiError(
+          StatusCodes.BAD_REQUEST,
+          'Cannot process payment for cancelled or refunded appointments'
         );
       }
 
@@ -144,6 +193,11 @@ const createPaymentIntent = async (
       metadata.hostEmail = (salon.host as any).email;
       metadata.salonName = salon.name;
       metadata.serviceName = appointment.service.name;
+    }
+
+    // Verify payment method is supported
+    if (!Object.values(PaymentMethod).includes(paymentMethod)) {
+      throw new ApiError(StatusCodes.BAD_REQUEST, 'Unsupported payment method');
     }
 
     // Add customer metadata as strings
@@ -197,6 +251,13 @@ const createPaymentIntent = async (
     });
 
     await session.commitTransaction();
+    logger.info('Payment intent created successfully', {
+      userId,
+      type,
+      itemId,
+      amount: amount / 100,
+      paymentIntentId: paymentIntent.id,
+    });
 
     return {
       clientSecret: paymentIntent.client_secret,
@@ -205,6 +266,12 @@ const createPaymentIntent = async (
     };
   } catch (error) {
     await session.abortTransaction();
+    logger.error('Error creating payment intent', {
+      error: error instanceof Error ? error.message : 'Unknown error',
+      userId,
+      type,
+      itemId,
+    });
     throw error;
   } finally {
     session.endSession();
@@ -249,6 +316,10 @@ const handleStripeWebhook = async (event: any) => {
 
 const handleSuccessfulPayment = async (paymentIntent: any) => {
   const session = await mongoose.startSession();
+  logger.info('Starting payment processing', {
+    paymentIntentId: paymentIntent.id,
+  });
+
   try {
     session.startTransaction();
 
@@ -259,250 +330,290 @@ const handleSuccessfulPayment = async (paymentIntent: any) => {
       .populate('order')
       .populate('appointment');
 
-    if (!payment)
+    if (!payment) {
       throw new ApiError(StatusCodes.NOT_FOUND, 'Payment not found');
+    }
 
+    // Update payment status
     payment.status = PaymentStatus.COMPLETED;
     payment.paymentDate = new Date();
     await payment.save({ session });
 
+    // Handle Order Payment
     if (payment.order) {
       const order = await Order.findById(payment.order)
         .populate('user', 'name email')
-        .populate('salonOrders.host', 'name email');
+        .populate('salonOrders.host', 'name email')
+        .populate('salonOrders.salon')
+        .populate('items.product', 'name images');
 
-      if (!order) throw new ApiError(StatusCodes.NOT_FOUND, 'Order not found');
+      if (!order) {
+        throw new ApiError(StatusCodes.NOT_FOUND, 'Order not found');
+      }
 
-      order.paymentStatus = PaymentStatus.COMPLETED;
+      // Update order status
+      order.paymentStatus = 'paid';
       order.status = 'confirmed';
 
-      order.salonOrders.forEach(salonOrder => {
+      // Handle salon orders
+      for (const salonOrder of order.salonOrders) {
+        // Update salon order status
         salonOrder.paymentConfirmed = true;
-      });
+        salonOrder.status = 'confirmed';
+
+        // Calculate commission
+        const { adminCommission, hostAmount } = Payment.calculateCommission(
+          salonOrder.amount
+        );
+
+        // Create income record for each salon
+        await Income.create(
+          [
+            {
+              salon: salonOrder.salon,
+              host: salonOrder.host,
+              order: order._id,
+              type: 'product',
+              amount: salonOrder.amount,
+              adminCommission,
+              hostAmount,
+              status: 'paid',
+              paymentMethod: payment.paymentMethod,
+              transactionDate: new Date(),
+              remarks: `Card payment confirmed for Order #${order.orderId}`,
+              confirmBy: {
+                _id: order.user._id,
+                name: order.user.name,
+                email: order.user.email,
+              },
+            },
+          ],
+          { session }
+        );
+
+        // Get order items for this salon
+        const salonItems = order.items.filter(
+          item => item.salon.toString() === salonOrder.salon._id.toString()
+        );
+
+        // Format items for notification
+        const formattedItems = salonItems.map(item => ({
+          productName: item.product.name,
+          quantity: item.quantity,
+          price: item.price,
+          totalPrice: item.price * (item.quantity || 1),
+          images: item.product.images,
+        }));
+
+        // Send notification to host
+        await sendNotifications({
+          type: 'PAYMENT',
+          receiver: salonOrder.host._id,
+          message: `Payment of $${salonOrder.amount} received for Order #${order.orderId}`,
+          metadata: {
+            orderId: order._id,
+            amount: salonOrder.amount,
+            type: 'order',
+            status: 'confirmed',
+            paymentMethod: payment.paymentMethod,
+            customerName: order.user.name,
+            customerEmail: order.user.email,
+            salonName: (salonOrder.salon as ISalon).name,
+            items: formattedItems,
+            adminCommission,
+            hostAmount,
+            paymentDate: new Date(),
+          },
+        });
+
+        // Update product quantities
+        for (const item of salonItems) {
+          await Product.findByIdAndUpdate(
+            item.product._id,
+            { $inc: { quantity: -(item.quantity || 1) } },
+            { session }
+          );
+        }
+      }
 
       await order.save({ session });
 
-      // ✅ Create Income Entry
-      for (const salonOrder of order.salonOrders) {
-        await Income.create({
-          salon: salonOrder.salon,
-          host: salonOrder.host,
-          order: order._id,
-          amount: salonOrder.amount,
-          status: 'pending_admin_transfer',
-          paymentMethod: payment.paymentMethod,
-        });
-      }
-
-      // ✅ Send Notifications
+      // Notify customer
       await sendNotifications({
         type: 'PAYMENT',
         receiver: order.user._id,
-        message: `Your payment for Order #${order.orderId} was successful.`,
+        message: `Your payment of $${order.totalAmount} for Order #${order.orderId} has been confirmed`,
+        metadata: {
+          orderId: order._id,
+          amount: order.totalAmount,
+          type: 'order',
+          status: 'confirmed',
+          paymentMethod: payment.paymentMethod,
+          orderDetails: {
+            items: order.items.map(item => ({
+              productName: item.product.name,
+              quantity: item.quantity,
+              price: item.price,
+              totalPrice: item.price * (item.quantity || 1),
+              images: item.product.images,
+              salonName: (item.salon as any).name,
+            })),
+            totalAmount: order.totalAmount,
+            orderDate: order.createdAt,
+            paymentDate: new Date(),
+          },
+        },
       });
-
-      for (const salonOrder of order.salonOrders) {
-        await sendNotifications({
-          type: 'PAYMENT',
-          receiver: salonOrder.host,
-          message: `Payment received for Order #${order.orderId}.`,
-        });
-      }
     }
 
+    // Handle Appointment Payment
+    else if (payment.appointment) {
+      const appointment = await Appointment.findById(payment.appointment)
+        .populate('user', 'name email')
+        .populate({
+          path: 'salon',
+          populate: {
+            path: 'host',
+            select: 'name email',
+          },
+        })
+        .populate('service', 'name price duration');
+
+      if (!appointment) {
+        throw new ApiError(StatusCodes.NOT_FOUND, 'Appointment not found');
+      }
+
+      // Update appointment status
+      appointment.payment.status = 'paid';
+      appointment.status = 'confirmed';
+
+      // Calculate commission
+      const { adminCommission, hostAmount } = Payment.calculateCommission(
+        appointment.price
+      );
+
+      // Create income record
+      await Income.create(
+        [
+          {
+            salon: appointment.salon,
+            host: (appointment.salon as ISalon).host._id,
+            appointment: appointment._id,
+            type: 'service',
+            amount: appointment.price,
+            adminCommission,
+            hostAmount,
+            status: 'paid',
+            paymentMethod: payment.paymentMethod,
+            transactionDate: new Date(),
+            remarks: `Card payment confirmed for Appointment #${appointment.appointmentId}`,
+            confirmBy: {
+              _id: appointment.user._id,
+              name: appointment.user.name,
+              email: appointment.user.email,
+            },
+          },
+        ],
+        { session }
+      );
+
+      await appointment.save({ session });
+
+      // Notify host
+      await sendNotifications({
+        type: 'PAYMENT',
+        receiver: (appointment.salon as ISalon).host._id,
+        message: `Payment of $${appointment.price} received for Appointment #${appointment.appointmentId}`,
+        metadata: {
+          appointmentId: appointment._id,
+          amount: appointment.price,
+          type: 'appointment',
+          status: 'confirmed',
+          paymentMethod: payment.paymentMethod,
+          customerName: appointment.user.name,
+          customerEmail: appointment.user.email,
+          serviceName: appointment.service.name,
+          serviceDetails: {
+            name: appointment.service.name,
+            price: appointment.service.price,
+            duration: appointment.service.duration,
+          },
+          appointmentDate: appointment.appointmentDate,
+          adminCommission,
+          hostAmount,
+          paymentDate: new Date(),
+        },
+      });
+
+      // Notify customer
+      await sendNotifications({
+        type: 'PAYMENT',
+        receiver: appointment.user._id,
+        message: `Your payment of $${appointment.price} for Appointment #${appointment.appointmentId} has been confirmed`,
+        metadata: {
+          appointmentId: appointment._id,
+          amount: appointment.price,
+          type: 'appointment',
+          status: 'confirmed',
+          paymentMethod: payment.paymentMethod,
+          serviceName: appointment.service.name,
+          salonName: (appointment.salon as ISalon).name,
+          appointmentDetails: {
+            service: {
+              name: appointment.service.name,
+              price: appointment.service.price,
+              duration: appointment.service.duration,
+            },
+            appointmentDate: appointment.appointmentDate,
+            paymentDate: new Date(),
+          },
+        },
+      });
+    }
+
+    // Notify admin
+    await sendNotifications({
+      type: 'ADMIN',
+      message: `New ${payment.paymentMethod} payment processed for ${
+        payment.paymentType
+      } #${
+        payment[payment.paymentType]?.orderId ||
+        payment[payment.paymentType]?.appointmentId
+      }`,
+      metadata: {
+        paymentId: payment._id,
+        amount: payment.amount,
+        type: payment.paymentType,
+        status: 'completed',
+        stripePaymentIntentId: payment.stripePaymentIntentId,
+        paymentDetails: {
+          method: payment.paymentMethod,
+          date: new Date(),
+          amount: payment.amount,
+          customerInfo: {
+            name: (payment.user as any).name,
+            email: (payment.user as any).email,
+          },
+        },
+      },
+    });
+
     await session.commitTransaction();
+    logger.info('Payment processing completed successfully', {
+      paymentIntentId: paymentIntent.id,
+      paymentType: payment.paymentType,
+    });
   } catch (error) {
     await session.abortTransaction();
+    logger.error('Error processing payment', {
+      error,
+      paymentIntentId: paymentIntent.id,
+    });
     throw error;
   } finally {
     session.endSession();
   }
 };
-
-// const handleSuccessfulPayment = async (paymentIntent: any) => {
-//   const session = await mongoose.startSession();
-//   try {
-//     session.startTransaction();
-
-//     const payment = await Payment.findOne({
-//       stripePaymentIntentId: paymentIntent.id,
-//     });
-
-//     if (!payment) {
-//       throw new ApiError(StatusCodes.NOT_FOUND, 'Payment not found');
-//     }
-
-//     payment.status = 'completed';
-//     payment.paymentDate = new Date();
-//     await payment.save({ session });
-
-//     if (payment.order) {
-//       const order = await Order.findById(payment.order)
-//         .populate({ path: 'user', select: 'name email' })
-//         .populate('salonOrders.host', 'name email')
-//         .populate('salonOrders.salon');
-
-//       if (!order) {
-//         throw new ApiError(StatusCodes.NOT_FOUND, 'Order not found');
-//       }
-
-//       // Update order payment status and confirm all salon orders
-//       order.paymentStatus = 'paid';
-//       order.status = 'confirmed';
-
-//       // Update paymentConfirmed for all salon orders
-//       order.salonOrders.forEach(salonOrder => {
-//         salonOrder.paymentConfirmed = true;
-//       });
-
-//       await order.save({ session });
-
-//       // Create income records and send notifications for each salon order
-//       for (const salonOrder of order.salonOrders) {
-//         const hostUser = salonOrder.host as any;
-
-//         // Create income record
-//         await Income.create(
-//           [
-//             {
-//               salon: salonOrder.salon,
-//               host: salonOrder.host,
-//               order: order._id,
-//               type: 'product',
-//               amount: salonOrder.amount,
-//               status: 'pending_admin_transfer',
-//               paymentMethod: payment.paymentMethod,
-//               transactionDate: new Date(),
-//               remarks: `Card payment received - Pending admin transfer to ${hostUser.name} (${hostUser.email})`,
-//             },
-//           ],
-//           { session }
-//         );
-
-//         // Send notification to host
-//         await sendNotifications({
-//           type: 'PAYMENT',
-//           receiver: salonOrder.host,
-//           message: `Payment of $${salonOrder.amount} received for Order #${order.orderId}. Admin will transfer the funds shortly.`,
-//           metadata: {
-//             orderId: order._id,
-//             amount: salonOrder.amount,
-//             type: 'order',
-//             customerName: order.user.name,
-//             customerEmail: order.user.email,
-//             salonName: salonOrder.salon.name,
-//           },
-//         });
-//       }
-
-//       // Notify customer
-//       await sendNotifications({
-//         type: 'PAYMENT',
-//         receiver: order.user._id,
-//         message: `Your payment of $${order.totalAmount} for Order #${order.orderId} has been confirmed.`,
-//         metadata: {
-//           orderId: order._id,
-//           amount: order.totalAmount,
-//           type: 'order',
-//           status: 'confirmed',
-//         },
-//       });
-//     } else if (payment.appointment) {
-//       const appointment = await Appointment.findById(payment.appointment)
-//         .populate('user', 'name email')
-//         .populate({
-//           path: 'salon',
-//           populate: {
-//             path: 'host',
-//             select: 'name email',
-//           },
-//         })
-//         .populate('service', 'name');
-
-//       if (!appointment) {
-//         throw new ApiError(StatusCodes.NOT_FOUND, 'Appointment not found');
-//       }
-
-//       // Update appointment status
-//       appointment.payment.status = 'paid';
-//       appointment.status = 'confirmed';
-//       await appointment.save({ session });
-
-//       const salon = appointment.salon as ISalon;
-//       const hostUser = salon.host;
-
-//       // Create income record
-//       await Income.create(
-//         [
-//           {
-//             salon: appointment.salon,
-//             host: salon.host._id,
-//             appointment: appointment._id,
-//             type: 'service',
-//             amount: appointment.price,
-//             status: 'pending_admin_transfer',
-//             paymentMethod: 'card',
-//             transactionDate: new Date(),
-//             remarks: `Card payment received - Pending admin transfer to ${hostUser.name} (${hostUser.email})`,
-//           },
-//         ],
-//         { session }
-//       );
-
-//       // Notify host
-//       await sendNotifications({
-//         type: 'PAYMENT',
-//         receiver: salon.host._id,
-//         message: `Payment of $${appointment.price} received for Appointment #${appointment.appointmentId}. Admin will transfer the funds shortly.`,
-//         metadata: {
-//           appointmentId: appointment._id,
-//           amount: appointment.price,
-//           type: 'appointment',
-//           customerName: appointment.user.name,
-//           customerEmail: appointment.user.email,
-//           serviceName: appointment.service.name,
-//         },
-//       });
-
-//       // Notify customer
-//       await sendNotifications({
-//         type: 'PAYMENT',
-//         receiver: appointment.user._id,
-//         message: `Your payment of $${appointment.price} for Appointment #${appointment.appointmentId} has been confirmed.`,
-//         metadata: {
-//           appointmentId: appointment._id,
-//           amount: appointment.price,
-//           type: 'appointment',
-//           serviceName: appointment.service.name,
-//           salonName: salon.name,
-//         },
-//       });
-//     }
-
-//     // Notify admin about successful payment
-//     await sendNotifications({
-//       type: 'ADMIN',
-//       message: `New ${payment.paymentMethod} payment received for ${
-//         payment.paymentType
-//       } #${payment[payment.paymentType]}. Please process host payment.`,
-//       metadata: {
-//         paymentId: payment._id,
-//         amount: payment.amount,
-//         type: payment.paymentType,
-//         stripePaymentIntentId: payment.stripePaymentIntentId,
-//         customerInfo: payment.metadata,
-//         status: 'completed',
-//       },
-//     });
-
-//     await session.commitTransaction();
-//   } catch (error) {
-//     await session.abortTransaction();
-//     throw error;
-//   } finally {
-//     session.endSession();
-//   }
-// };
 
 const handleFailedPayment = async (paymentIntent: any) => {
   const session = await mongoose.startSession();

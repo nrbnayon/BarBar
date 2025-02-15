@@ -53,7 +53,7 @@ const paymentSchema = new Schema<IPayment, IPaymentModel>(
       type: String,
       index: true,
     },
-    paymentType: {
+    type: {
       type: String,
       enum: Object.values(PaymentType),
       required: true,

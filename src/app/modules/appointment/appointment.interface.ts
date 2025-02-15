@@ -32,7 +32,13 @@ export type IAppointment = {
   appointmentDate: Date;
   startTime: string;
   endTime: string;
-  status: 'pending' | 'confirmed' | 'cancelled' | 'completed' | 'no-show';
+  status:
+    | 'pending'
+    | 'confirmed'
+    | 'cancelled'
+    | 'completed'
+    | 'no-show'
+    | 'refunded';
   payment: PaymentInfo | IPayment;
   notes?: string;
   remarks?: string;
